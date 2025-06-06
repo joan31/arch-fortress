@@ -1,5 +1,17 @@
 # 🏰 Arch Fortress — Secure & Minimal Arch Linux Installer
 
+![Linux](https://img.shields.io/badge/OS-Linux-black?style=flat-square&logo=linux&logoColor=white)
+![Arch Linux](https://img.shields.io/badge/Distro-Arch-blue?style=flat-square&logo=arch-linux)
+![EFI](https://img.shields.io/badge/Firmware-EFI-white?style=flat-square&logo=rocket&logoColor=white)
+![UKI](https://img.shields.io/badge/Boot-UKI-purple?style=flat-square&logo=linuxfoundation&logoColor=white)
+![LUKS2 + TPM2](https://img.shields.io/badge/Encryption-LUKS2%20%2B%20TPM2-orange?style=flat-square&logo=cryptpad&logoColor=white)
+![Secure Boot](https://img.shields.io/badge/Secure%20Boot-Enabled-teal?style=flat-square&logo=socket&logoColor=white)
+![BTRFS](https://img.shields.io/badge/Filesystem-BTRFS-deepskyblue?style=flat-square&logo=buffer&logoColor=white)
+![Systemd](https://img.shields.io/badge/Init-Systemd-slateblue?style=flat-square&logo=circle&logoColor=white)
+![Zswap](https://img.shields.io/badge/Zswap-Enabled-limegreen?style=flat-square&logo=cashapp&logoColor=white)
+![Snapper](https://img.shields.io/badge/Snapper-Enabled-darkslategray?style=flat-square&logo=simpleicons&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square&logo=open-source-initiative)](LICENSE)
+
 **Arch Fortress** is a lightweight, secure, modern and efficient Arch Linux installation framework.
 
 It aims to provide a **solid base system** for advanced users who want a clean, fully encrypted system using modern technologies — **without unnecessary components** like GRUB or classic init hooks.
@@ -187,6 +199,9 @@ Boot process:
 
 > 🧪 Coming soon: Full auto-install script with configuration prompts or flags.
 
+> ⚠️ **Secure Boot must be set to "Setup Mode" in the BIOS/UEFI before installation.**  
+> This is required to enroll your own Secure Boot keys with `sbctl`.
+
 Planned workflow:
 
 1. Boot from Arch ISO (UEFI)
@@ -207,7 +222,10 @@ Planned workflow:
 
 ## 📖 Manual Installation (Step-by-step)
 
-> 🧠 For advanced users or educational purposes
+> 🧠 For advanced users or educational purposes.
+
+> ⚠️ **Secure Boot must be set to "Setup Mode" in the BIOS/UEFI before installation.**  
+> This is required to enroll your own Secure Boot keys with `sbctl`.
 
 This section will provide all individual shell commands used in the installation, including:
 
@@ -241,7 +259,7 @@ pacman -Sy archlinux-keyring
 # ⚙️ Partition the disk: EFI (512MB) + LUKS root (rest of disk)
 sgdisk --clear --align-end \
   --new=1:0:+500M --typecode=1:ef00 --change-name=1:"EFI system partition" \
-  --new=2:0:0     --typecode=2:8309 --change-name=2:"Linux LUKS" \
+  --new=2:0:0 --typecode=2:8309 --change-name=2:"Linux LUKS" \
   /dev/nvme0n1
 ```
 
@@ -407,7 +425,7 @@ lianli-arch
 # 🧭 Set hosts file entries for local networking
 nvim /etc/hosts
 
-Content:
+# Content:
 127.0.0.1      localhost
 ::1            localhost
 192.168.1.101  lianli-arch.zenitram lianli-arch
@@ -691,6 +709,143 @@ passwd root
 exit
 umount -R /mnt
 systemctl reboot --firmware-setup
+```
+
+### 🧩 Step 36 — Configure Snapper after Reboot
+
+```bash
+# 🔌 Unmount the default /.snapshots subvolume
+umount /.snapshots
+
+# 🗑️ Delete it to avoid conflicts with our custom mount
+rm -r /.snapshots
+
+# 🛠️ Initialize Snapper for root filesystem
+snapper -c root create-config /
+
+# ❌ Delete the subvolume Snapper just created (we’ll remount it ourselves)
+btrfs subvolume delete /.snapshots
+
+# 📂 Recreate the mount point and mount it
+mkdir /.snapshots
+mount /.snapshots
+
+# 🔐 Secure the directory
+chmod 750 /.snapshots
+
+# 📝 Configure Snapper snapshot settings
+nvim /etc/snapper/configs/root
+
+# Content:
+TIMELINE_CREATE="yes"
+TIMELINE_CLEANUP="yes"
+
+NUMBER_MIN_AGE="1800"
+NUMBER_LIMIT="10"
+NUMBER_LIMIT_IMPORTANT="10"
+
+TIMELINE_MIN_AGE="1800"
+TIMELINE_LIMIT_HOURLY="5"
+TIMELINE_LIMIT_DAILY="7"
+TIMELINE_LIMIT_WEEKLY="0"
+TIMELINE_LIMIT_MONTHLY="0"
+TIMELINE_LIMIT_YEARLY="0"
+```
+
+### 🛡️ Step 37 — Custom Pacman Hook to Backup /efi
+
+```bash
+# 🪝 Create a hook to automatically backup /efi before critical updates
+nvim /etc/pacman.d/hooks/10-efi_backup.hook
+
+# Content:
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Target = usr/lib/initcpio/*
+Target = usr/lib/firmware/*
+Target = usr/lib/modules/*/extramodules/
+Target = usr/lib/modules/*/vmlinuz
+Target = usr/src/*/dkms.conf
+
+[Trigger]
+Type = Package
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Target = mkinitcpio
+Target = mkinitcpio-git
+
+[Action]
+Description = 🔐 Backing up /efi...
+When = PreTransaction
+Exec = /usr/local/sbin/efi_backup.sh
+
+# ✍️ Create the backup script
+nvim /usr/local/sbin/efi_backup.sh
+
+# Content:
+#!/bin/bash
+
+# 📦 Backup /efi into a timestamped archive
+tar -czf "/.efibackup/efi-$(date +%Y%m%d-%H%M%S).tar.gz" -C / efi
+
+# 🧽 Keep only the last 3 backups
+ls -1t /.efibackup/efi-*.tar.gz | tail -n +4 | xargs -r rm --
+
+# ✅ Make it executable
+chmod +x /usr/local/sbin/efi_backup.sh
+```
+
+### ✂️ Step 38 — Limit fstrim to FAT32 /efi Only
+
+```bash
+# ⚙️ Override default fstrim behavior
+systemctl edit fstrim.service
+
+# Content:
+[Service]
+ExecStart=
+ExecStart=/usr/sbin/fstrim -v /efi
+```
+
+### ⏲️ Step 39 — Enable Maintenance Timers
+
+```bash
+# 🕒 Enable regular TRIM for /efi
+systemctl enable fstrim.timer
+
+# 📸 Enable automatic timeline snapshots
+systemctl enable snapper-timeline.timer
+
+# 🧼 Enable automatic snapshot cleanup
+systemctl enable snapper-cleanup.timer
+```
+
+### 🧷 Step 40 — Enable Pacman Transaction Snapshots
+
+```bash
+# 🧩 Install snap-pac to snapshot before and after pacman operations
+pacman -S snap-pac
+```
+
+### 🗑️ Step 41 — Clean Snapper Initial Snapshots Manually
+
+```bash
+# 📋 List snapshots (🔍)
+snapper -c root list
+
+# 🧹 Delete a range of snapshots (e.g., snapshots 1 to 2)
+snapper -c root delete 1-2
+```
+
+### 📸 Step 42 — Take Initial System Snapshot
+
+```bash
+# 🧊 Manually create the first system snapshot after full setup
+snapper -c root create -d "init"
 ```
 
 ---
