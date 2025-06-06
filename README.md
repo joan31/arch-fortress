@@ -341,7 +341,9 @@ genfstab -U /mnt >> /mnt/etc/fstab
 
 # 🔍 (Optional) Review fstab
 nvim /mnt/etc/fstab
-# Make sure root uses: subvol=/@ ... 0 1
+
+# Content:
+UUID=0ed61f21-e4f4-4a80-9e45-9feb9d5fb012	/				btrfs		rw,noatime,nodiratime,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=/@						0 1
 ```
 
 ### 🚪 Step 9 — Enter Chroot
@@ -349,6 +351,195 @@ nvim /mnt/etc/fstab
 ```bash
 # 🌀 Change root into new system
 arch-chroot /mnt
+```
+
+### 🌐 Step 10 — Keyboard & Locale Configuration
+
+```bash
+# ⌨️ Set virtual console keyboard to French
+nvim /etc/vconsole.conf
+
+# Content:
+KEYMAP=fr
+FONT=lat9w-16
+
+# 🌍 Set system-wide locale
+nvim /etc/locale.conf
+
+# Content:
+LANG=fr_FR.UTF-8
+LC_COLLATE=C
+LC_MESSAGES=en_US.UTF-8
+
+# 🔓 Enable required locales
+nvim /etc/locale.gen
+
+# Uncomment:
+en_US.UTF-8 UTF-8
+fr_FR.UTF-8 UTF-8
+
+# ⚙️ Generate locale definitions
+locale-gen
+```
+
+### 🔢 Step 11 — TTY Behavior (Enable NumLock)
+
+```bash
+# 🧷 Create drop-in to activate NumLock automatically on TTY login
+mkdir /etc/systemd/system/getty@.service.d
+
+nvim /etc/systemd/system/getty@.service.d/activate-numlock.conf
+
+# Content:
+[Service]
+ExecStartPre=/bin/sh -c 'setleds -D +num < /dev/%I'
+```
+
+### 🖥️ Step 12 — Host Identity Configuration
+
+```bash
+# 🏷️ Set system hostname
+nvim /etc/hostname
+
+# Content:
+lianli-arch
+
+# 🧭 Set hosts file entries for local networking
+nvim /etc/hosts
+
+Content:
+127.0.0.1      localhost
+::1            localhost
+192.168.1.101  lianli-arch.zenitram lianli-arch
+```
+
+### 🕒 Step 13 — Timezone & Clock Setup
+
+```bash
+# 🌍 Set system timezone
+ln -sf /usr/share/zoneinfo/Europe/Paris /etc/localtime
+
+# ⏱️ Sync hardware clock with system time
+hwclock --systohc
+```
+
+### 🧩 Step 14 — Initramfs Configuration (Systemd, LUKS, Keyboard)
+
+```bash
+# ⚙️ Edit initramfs hooks to include systemd & encryption
+nvim /etc/mkinitcpio.conf
+
+# Content:
+HOOKS=(systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems sd-shutdown)
+
+# 🔐 Setup encrypted volume for systemd to unlock via TPM2
+nvim /etc/crypttab.initramfs
+
+# Content:
+cryptarch UUID=<nvme-UUID> none tpm2-device=auto,password-echo=no,x-systemd.device-timeout=0,timeout=0,no-read-workqueue,no-write-workqueue,discard
+
+# Get <nvme-UUID> on vim:
+:read ! lsblk -dno UUID /dev/nvme0n1p2
+```
+
+### 🧵 Step 15 — Kernel Command Line Configuration (UKI + zswap)
+
+```bash
+# ⚙️ Root and logging options (read-only fs is handled by systemd)
+nvim /etc/cmdline.d/01-root.conf
+
+# Content:
+root=/dev/mapper/cryptarch rootfstype=btrfs rootflags=subvol=@ ro loglevel=3
+
+# 🧠 Configure zswap parameters for performance
+nvim /etc/cmdline.d/02-zswap.conf
+
+# Content:
+zswap.enabled=1 zswap.max_pool_percent=20 zswap.zpool=zsmalloc zswap.compressor=zstd zswap.accept_threshold_percent=90
+```
+
+### 🧬 Step 16 — Initramfs Preset for Unified Kernel Image (UKI)
+
+```bash
+# 🔧 Setup mkinitcpio preset to generate a UKI
+nvim /etc/mkinitcpio.d/linux.preset
+
+# Content:
+ALL_kver="/boot/vmlinuz-linux"
+PRESETS=('default')
+default_uki="/efi/EFI/Linux/arch-linux.efi"
+default_options="--splash=/usr/share/systemd/bootctl/splash-arch.bmp"
+```
+
+### 🔐 Step 17 — Secure Boot with sbctl
+
+```bash
+# 🔑 Create Secure Boot keys
+sbctl create-keys
+
+# 📥 Enroll custom keys and Microsoft keys
+sbctl enroll-keys -m
+
+# 🛠️ Generate the Unified Kernel Image
+mkdir -p /efi/EFI/Linux
+mkinitcpio -p linux
+```
+
+### 💻 Step 18 — EFI Boot Entry
+
+```bash
+# 🧷 Register UKI with UEFI firmware
+efibootmgr --create --disk /dev/nvme0n1 --part 1 \
+  --label "Arch Linux" --loader /EFI/Linux/arch-linux.efi --unicode
+```
+
+### 🛡️ Step 19 — LUKS TPM2 Key Enrollment
+
+```bash
+# 🔒 Enroll TPM2 key (PCR 0 = firmware, PCR 7 = Secure Boot state)
+systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7 /dev/nvme0n1p2
+```
+
+### 🧠 Step 20 — Swappiness Tuning
+
+```bash
+# 🧮 Lower swappiness to prefer RAM usage over swap
+nvim /etc/sysctl.d/99-swappiness.conf
+
+# Content:
+vm.swappiness=20
+```
+
+### 🔄 Step 21 — Encrypted Swap Setup
+
+```bash
+# 🔐 Add encrypted swap entry using /dev/urandom
+nvim /etc/crypttab
+
+# Content:
+swap /.swap/swapfile /dev/urandom swap,cipher=aes-xts-plain64,sector-size=4096
+
+# 📄 Add swap to fstab
+nvim /etc/fstab
+
+# Content:
+/dev/mapper/swap none swap defaults 0 0
+```
+
+### 📦 Step 22 — Pacman Configuration
+
+```bash
+# 📦 Enable multilib, candy theme, parallel downloads & ignore snapper cron jobs
+nvim /etc/pacman.conf
+
+# Content:
+NoExtract = etc/cron.daily/snapper etc/cron.hourly/snapper
+Color
+ParallelDownloads = 10
+ILoveCandy
+
+[multilib]
+Include = /etc/pacman.d/mirrorlist
 ```
 
 ---
