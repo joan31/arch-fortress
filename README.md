@@ -221,7 +221,135 @@ This section will provide all individual shell commands used in the installation
 - 🧊 Snapper configuration
 - 🌀 Swap and zswap activation
 
-📌 *To be added soon...*
+### 🧱 Step 1 — Pre-Installation Setup
+
+```bash
+# ⌨️ Set keyboard layout to French
+loadkeys fr
+
+# 🧼 Clean existing EFI entries if needed (replace X with the entry number)
+efibootmgr
+efibootmgr -b X -B
+
+# 🔐 Update GPG keys from live environment (recommended before installing)
+pacman -Sy archlinux-keyring
+```
+
+### 💽 Step 2 — Disk Partitioning (GPT)
+
+```bash
+# ⚙️ Partition the disk: EFI (512MB) + LUKS root (rest of disk)
+sgdisk --clear --align-end \
+  --new=1:0:+500M --typecode=1:ef00 --change-name=1:"EFI system partition" \
+  --new=2:0:0     --typecode=2:8309 --change-name=2:"Linux LUKS" \
+  /dev/nvme0n1
+```
+
+### 🧼 Step 3 — Filesystem Creation
+
+```bash
+# 🧴 Format EFI partition (optimized for NVMe 4K sector size)
+mkfs.vfat -F 32 -n "SYSTEM" -S 4096 -s 1 /dev/nvme0n1p1
+
+# 🔐 Create LUKS2 encrypted container with strong encryption options
+cryptsetup --type luks2 --cipher aes-xts-plain64 --hash sha512 \
+  --iter-time 5000 --key-size 512 --pbkdf argon2id \
+  --label "Linux LUKS" --sector-size 4096 --use-urandom \
+  --verify-passphrase luksFormat /dev/nvme0n1p2
+
+# 🔓 Open the LUKS container as /dev/mapper/cryptarch
+cryptsetup --allow-discards --persistent open --type luks2 \
+  /dev/nvme0n1p2 cryptarch
+
+# 🧊 Format the unlocked LUKS volume with BTRFS (4K sectors)
+mkfs.btrfs -L "Arch Linux" -s 4096 /dev/mapper/cryptarch
+```
+
+### 🌳 Step 4 — BTRFS Subvolume Layout
+
+```bash
+# 🪵 Mount the root BTRFS volume temporarily
+mount -o rw,noatime,nodiratime,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120 \
+  /dev/mapper/cryptarch /mnt
+
+# 📂 Create BTRFS subvolumes
+btrfs subvolume create /mnt/@           # root
+btrfs subvolume create /mnt/@swap       # encrypted swap
+btrfs subvolume create /mnt/@snapshots  # for Snapper
+btrfs subvolume create /mnt/@efibck     # automatic EFI backups
+btrfs subvolume create /mnt/@log        # system logs
+btrfs subvolume create /mnt/@pkg        # pacman cache
+btrfs subvolume create /mnt/@tmp        # temp files
+btrfs subvolume create /mnt/@vms        # libvirt VMs
+btrfs subvolume create /mnt/@home       # user data
+btrfs subvolume create /mnt/@srv        # server data
+btrfs subvolume create /mnt/@games      # optional game data
+
+# 🔓 Unmount the volume before remounting subvolumes individually
+umount /mnt
+```
+
+### 🛠️ Step 5 — Mount Subvolumes & Prepare System
+
+```bash
+# 🔧 Mount root subvolume
+mount -o rw,noatime,nodiratime,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@ \
+  /dev/mapper/cryptarch /mnt
+
+# 🗂️ Create necessary mount points
+mkdir -p /mnt/{efi,.swap,.snapshots,.efibackup,var/{log,tmp,cache/pacman/pkg,lib/libvirt/images},home,srv,opt/games}
+
+# 🖥️ Mount EFI system partition (read-only, noexec for safety)
+mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,fmask=0022,dmask=0022 \
+  /dev/nvme0n1p1 /mnt/efi
+
+# 🧷 Mount other BTRFS subvolumes
+mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@swap /dev/mapper/cryptarch /mnt/.swap
+mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@snapshots /dev/mapper/cryptarch /mnt/.snapshots
+mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@efibck /dev/mapper/cryptarch /mnt/.efibackup
+mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@log /dev/mapper/cryptarch /mnt/var/log
+mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@tmp /dev/mapper/cryptarch /mnt/var/tmp
+mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@pkg /dev/mapper/cryptarch /mnt/var/cache/pacman/pkg
+mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@vm /dev/mapper/cryptarch /mnt/var/lib/libvirt/images
+mount -o rw,noatime,nodiratime,nodev,nosuid,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@home /dev/mapper/cryptarch /mnt/home
+mount -o rw,noatime,nodiratime,nodev,nosuid,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@srv /dev/mapper/cryptarch /mnt/srv
+mount -o rw,noatime,nodiratime,nodev,nosuid,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@games /dev/mapper/cryptarch /mnt/opt/games
+```
+
+### 💾 Step 6 — Create Encrypted Swap File
+
+```bash
+# 🛏️ Create 4GB swap file on BTRFS subvolume
+btrfs filesystem mkswapfile --size 4g /mnt/.swap/swapfile
+chmod 600 /mnt/.swap/swapfile
+```
+
+### 📦 Step 7 — Install Base System
+
+```bash
+# 🧱 Install base packages + firmware, EFI tools, and btrfs support
+pacstrap /mnt \
+  base base-devel linux linux-firmware amd-ucode \
+  neovim efibootmgr btrfs-progs sbctl
+```
+
+### 🗂️ Step 8 — Generate fstab
+
+```bash
+# 📄 Generate fstab with UUIDs
+genfstab -U /mnt >> /mnt/etc/fstab
+
+# 🔍 (Optional) Review fstab
+nvim /mnt/etc/fstab
+# Make sure root uses: subvol=/@ ... 0 1
+```
+
+### 🚪 Step 9 — Enter Chroot
+
+```bash
+# 🌀 Change root into new system
+arch-chroot /mnt
+```
 
 ---
 
@@ -241,8 +369,8 @@ Yes — it's ideal for modern laptops with TPM2 and Secure Boot enabled.
 
 - 🖥️ UEFI firmware
 - 🧩 TPM 2.0 module
-- 🧷 Secure Boot support (optional but recommended)
-- 💿 Arch Linux ISO (2024+)
+- 🧷 Secure Boot support
+- 💿 Recent Arch Linux ISO
 - 🌐 Internet access
 
 ---
