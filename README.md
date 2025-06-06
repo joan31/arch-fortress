@@ -542,6 +542,157 @@ ILoveCandy
 Include = /etc/pacman.d/mirrorlist
 ```
 
+### 🌐 Step 23 — Network Configuration (Wired)
+
+```bash
+# 📡 Configure wired interface for DHCP, mDNS, and IPv6
+nvim /etc/systemd/network/20-wired.network
+
+# Content:
+[Match]
+Name=eno* ens* enp* eth*
+
+[Link]
+RequiredForOnline=routable
+
+[Network]
+DHCP=yes
+IPv6PrivacyExtensions=yes
+MulticastDNS=yes
+
+[DHCPv4]
+RouteMetric=100
+
+[IPv6AcceptRA]
+RouteMetric=100
+```
+
+### 🔌 Step 24 — Basic Packages: Bluetooth, Snapper, Reflector
+
+```bash
+# 📦 Install essential tools
+pacman -Syy bluez snapper pacman-contrib reflector
+```
+
+### 🕰️ Step 25 — Time Sync with French NTP Servers
+
+```bash
+# ⏲️ Set systemd-timesyncd to use French pool servers with iburst
+nvim /etc/systemd/timesyncd.conf
+
+# Content:
+[Time]
+NTP=0.fr.pool.ntp.org 1.fr.pool.ntp.org 2.fr.pool.ntp.org 3.fr.pool.ntp.org
+FallbackNTP=0.arch.pool.ntp.org 1.arch.pool.ntp.org 2.arch.pool.ntp.org 3.arch.pool.ntp.org
+```
+
+### 🚀 Step 26 — I/O Scheduler Tuning for NVMe
+
+```bash
+# 📉 Disable I/O scheduler on NVMe device to use none (for performance)
+nvim /etc/udev/rules.d/60-schedulers.rules
+
+# Content:
+ACTION=="add|change", KERNEL=="nvme0n1", ATTR{queue/scheduler}="none"
+```
+
+### 🧭 Step 27 — DNS Stub Resolver via systemd-resolved
+
+```bash
+# 🔁 Link stub resolver to /etc/resolv.conf
+ln -sf ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+```
+
+### 🌐 Step 28 — Reflector Configuration (Update Mirrorlist)
+
+```bash
+# 🌍 Optimize pacman mirrors by age, country, and protocol
+nvim /etc/xdg/reflector/reflector.conf
+
+# Content:
+--save /etc/pacman.d/mirrorlist
+--country France,Germany,Netherlands
+--protocol https
+--latest 5
+--sort age
+```
+
+### ⚙️ Step 29 — Enable Key Services (Networking, Time, Bluetooth)
+
+```bash
+# 🛠️ Enable network and system services
+systemctl enable systemd-networkd.service
+systemctl enable systemd-resolved.service
+systemctl enable bluetooth.service
+systemctl enable systemd-timesyncd.service
+systemctl enable paccache.timer
+systemctl enable reflector.timer
+```
+
+### 🔑 Step 30 — Configure sudo
+
+```bash
+# 🛡️ Grant sudo to wheel group
+EDITOR=nvim visudo
+
+# Content:
+%wheel ALL=(ALL:ALL) ALL
+```
+
+### 🚧 Step 31 — Compilation Optimization (makepkg)
+
+```bash
+# 🧰 Tune makepkg flags for native arch, use /tmp for build
+nvim /etc/makepkg.conf
+
+# Content:
+CFLAGS="-march=native -O2 -pipe ..."
+MAKEFLAGS="-j$(nproc)"
+BUILDDIR=/tmp/makepkg
+
+# 🦀 Optimize Rust build flags
+nvim /etc/makepkg.conf.d/rust.conf
+
+# Content:
+RUSTFLAGS="-C opt-level=2 -C target-cpu=native"
+```
+
+### 🔇 Step 32 — Disable HDMI Audio
+
+```bash
+# 🔕 Blacklist HDMI audio module
+nvim /etc/modprobe.d/blacklist.conf
+
+# Content:
+blacklist snd_hda_intel
+```
+
+### 🔒 Step 33 — Disable Webcam Microphone
+
+```bash
+# 🎙️ Block Logitech webcam microphone via udev rule
+nvim /etc/udev/rules.d/90-blacklist-webcam-sound.rules
+
+# Content:
+SUBSYSTEM=="usb", DRIVER=="snd-usb-audio", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="085c", ATTR{authorized}="0"
+```
+
+### 🔐 Step 34 — Set Root Password
+
+```bash
+# 🔑 Set root password
+passwd root
+```
+
+### 🚪 Step 35 — Exit chroot, Unmount, Reboot into Firmware Setup
+
+```bash
+# 👋 Exit chroot, unmount and reboot into UEFI/BIOS to check if Secure Boot is enabled
+exit
+umount -R /mnt
+systemctl reboot --firmware-setup
+```
+
 ---
 
 ## ❓ FAQ
