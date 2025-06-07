@@ -256,7 +256,7 @@ pacman -Sy archlinux-keyring
 ### 💽 Step 2 — Disk Partitioning (GPT)
 
 ```bash
-# ⚙️ Partition the disk: EFI (512MB) + LUKS root (rest of disk)
+# ⚙️ Partition the disk: EFI (500MB) + LUKS root (rest of disk)
 sgdisk --clear --align-end \
   --new=1:0:+500M --typecode=1:ef00 --change-name=1:"EFI system partition" \
   --new=2:0:0 --typecode=2:8309 --change-name=2:"Linux LUKS" \
