@@ -242,7 +242,7 @@ This section will provide all individual shell commands used in the installation
 ### 🧱 Step 1 — Pre-Installation Setup
 
 ```bash
-# ⌨️ (Optionnal) Set keyboard layout to French
+# ⌨️ (Optional) Set keyboard layout to French
 loadkeys fr
 
 # 🧼 Clean existing EFI entries if needed (replace X with the entry number)
@@ -291,17 +291,17 @@ mount -o rw,noatime,nodiratime,compress=zstd:3,ssd,discard=async,space_cache=v2,
   /dev/mapper/cryptarch /mnt
 
 # 📂 Create BTRFS subvolumes
-btrfs subvolume create /mnt/@           # root
-btrfs subvolume create /mnt/@swap       # encrypted swap
-btrfs subvolume create /mnt/@snapshots  # for Snapper
-btrfs subvolume create /mnt/@efibck     # automatic EFI backups
-btrfs subvolume create /mnt/@log        # system logs
-btrfs subvolume create /mnt/@pkg        # pacman cache
-btrfs subvolume create /mnt/@tmp        # temp files
-btrfs subvolume create /mnt/@vms        # libvirt VMs
-btrfs subvolume create /mnt/@home       # user data
-btrfs subvolume create /mnt/@srv        # server data
-btrfs subvolume create /mnt/@games      # optional game data
+btrfs subvolume create /mnt/@
+btrfs subvolume create /mnt/@swap
+btrfs subvolume create /mnt/@snapshots
+btrfs subvolume create /mnt/@efibck
+btrfs subvolume create /mnt/@log
+btrfs subvolume create /mnt/@pkg
+btrfs subvolume create /mnt/@tmp
+btrfs subvolume create /mnt/@vms
+btrfs subvolume create /mnt/@home
+btrfs subvolume create /mnt/@srv
+btrfs subvolume create /mnt/@games
 
 # 🔓 Unmount the volume before remounting subvolumes individually
 umount /mnt
@@ -328,13 +328,13 @@ mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=a
 mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@log /dev/mapper/cryptarch /mnt/var/log
 mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@tmp /dev/mapper/cryptarch /mnt/var/tmp
 mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@pkg /dev/mapper/cryptarch /mnt/var/cache/pacman/pkg
-mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@vm /dev/mapper/cryptarch /mnt/var/lib/libvirt/images
+mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@vms /dev/mapper/cryptarch /mnt/var/lib/libvirt/images
 mount -o rw,noatime,nodiratime,nodev,nosuid,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@home /dev/mapper/cryptarch /mnt/home
 mount -o rw,noatime,nodiratime,nodev,nosuid,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@srv /dev/mapper/cryptarch /mnt/srv
 mount -o rw,noatime,nodiratime,nodev,nosuid,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@games /dev/mapper/cryptarch /mnt/opt/games
 ```
 
-### 💾 Step 6 — Create Encrypted Swap File
+### 💾 Step 6 — Create Swap File
 
 ```bash
 # 🛏️ Create 4GB swap file on BTRFS subvolume
@@ -345,7 +345,7 @@ chmod 600 /mnt/.swap/swapfile
 ### 📦 Step 7 — Install Base System
 
 ```bash
-# 🧱 Install base packages + firmware, EFI tools, and btrfs support
+# 🧱 Install base packages + firmware, EFI tools, btrfs support, text editor and secure boot tools
 pacstrap /mnt \
   base base-devel linux linux-firmware amd-ucode \
   neovim efibootmgr btrfs-progs sbctl
@@ -357,11 +357,11 @@ pacstrap /mnt \
 # 📄 Generate fstab with UUIDs
 genfstab -U /mnt >> /mnt/etc/fstab
 
-# 🔍 (Optional) Review fstab
+# 🔍 (Optional) Review fstab and check "0 1" to enable fsck on /
 nvim /mnt/etc/fstab
 
 # Content:
-UUID=0ed61f21-e4f4-4a80-9e45-9feb9d5fb012	/				btrfs		rw,noatime,nodiratime,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=/@						0 1
+UUID=<BTRFS-UUID-PARTITION>      /      btrfs      rw,noatime,nodiratime,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=/@      0 1
 ```
 
 ### 🚪 Step 9 — Enter Chroot
@@ -405,7 +405,6 @@ locale-gen
 ```bash
 # 🧷 Create drop-in to activate NumLock automatically on TTY login
 mkdir /etc/systemd/system/getty@.service.d
-
 nvim /etc/systemd/system/getty@.service.d/activate-numlock.conf
 
 # Content:
@@ -456,14 +455,14 @@ nvim /etc/crypttab.initramfs
 # Content:
 cryptarch UUID=<nvme-UUID> none tpm2-device=auto,password-echo=no,x-systemd.device-timeout=0,timeout=0,no-read-workqueue,no-write-workqueue,discard
 
-# Get <nvme-UUID> on vim:
+# Get <nvme-UUID> on neovim:
 :read ! lsblk -dno UUID /dev/nvme0n1p2
 ```
 
 ### 🧵 Step 15 — Kernel Command Line Configuration (UKI + zswap)
 
 ```bash
-# ⚙️ Root and logging options (read-only fs is handled by systemd)
+# ⚙️ Root and logging options (read-only fs is handled by systemd and to fsck /)
 nvim /etc/cmdline.d/01-root.conf
 
 # Content:
@@ -482,7 +481,7 @@ zswap.enabled=1 zswap.max_pool_percent=20 zswap.zpool=zsmalloc zswap.compressor=
 # 🔧 Setup mkinitcpio preset to generate a UKI
 nvim /etc/mkinitcpio.d/linux.preset
 
-# Content:
+# Content only:
 ALL_kver="/boot/vmlinuz-linux"
 PRESETS=('default')
 default_uki="/efi/EFI/Linux/arch-linux.efi"
@@ -495,7 +494,7 @@ default_options="--splash=/usr/share/systemd/bootctl/splash-arch.bmp"
 # 🔑 Create Secure Boot keys
 sbctl create-keys
 
-# 📥 Enroll custom keys and Microsoft keys
+# 📥 Enroll custom keys and micr0$0ft💩 keys
 sbctl enroll-keys -m
 
 # 🛠️ Generate the Unified Kernel Image
@@ -524,7 +523,7 @@ systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7 /dev/nvme0n1p2
 # 🧮 Lower swappiness to prefer RAM usage over swap
 nvim /etc/sysctl.d/99-swappiness.conf
 
-# Content:
+# Content, 80% RAM usage before swapping:
 vm.swappiness=20
 ```
 
@@ -535,13 +534,14 @@ vm.swappiness=20
 nvim /etc/crypttab
 
 # Content:
-swap /.swap/swapfile /dev/urandom swap,cipher=aes-xts-plain64,sector-size=4096
+swap      /.swap/swapfile      /dev/urandom      swap,cipher=aes-xts-plain64,sector-size=4096
 
 # 📄 Add swap to fstab
 nvim /etc/fstab
 
 # Content:
-/dev/mapper/swap none swap defaults 0 0
+#	/.swap/swapfile      CRYPTED SWAPFILE
+/dev/mapper/swap      none      swap      defaults      0 0
 ```
 
 ### 📦 Step 22 — Pacman Configuration
@@ -585,7 +585,7 @@ RouteMetric=100
 RouteMetric=100
 ```
 
-### 🔌 Step 24 — Basic Packages: Bluetooth, Snapper, Reflector
+### 🔌 Step 24 — Basic Packages: Bluetooth, Snapper, Pacman Cache Service, Reflector
 
 ```bash
 # 📦 Install essential tools
@@ -635,7 +635,7 @@ nvim /etc/xdg/reflector/reflector.conf
 --sort age
 ```
 
-### ⚙️ Step 29 — Enable Key Services (Networking, Time, Bluetooth)
+### ⚙️ Step 29 — Enable Key Services (Networking, Bluetooth, Time, Packages Cache Cleaner, Mirrorlist Updater)
 
 ```bash
 # 🛠️ Enable network and system services
@@ -814,7 +814,7 @@ ExecStart=/usr/sbin/fstrim -v /efi
 ### ⏲️ Step 39 — Enable Maintenance Timers
 
 ```bash
-# 🕒 Enable regular TRIM for /efi
+# 🕒 Enable regular TRIM for /efi only
 systemctl enable fstrim.timer
 
 # 📸 Enable automatic timeline snapshots
