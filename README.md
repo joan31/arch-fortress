@@ -242,7 +242,7 @@ This section will provide all individual shell commands used in the installation
 ### 🧱 Step 1 — Pre-Installation Setup
 
 ```bash
-# ⌨️ Set keyboard layout to French
+# ⌨️ (Optionnal) Set keyboard layout to French
 loadkeys fr
 
 # 🧼 Clean existing EFI entries if needed (replace X with the entry number)
