@@ -11,7 +11,7 @@ set -e  # Stop the script on any error
 common_opts="rw,noatime,nodiratime,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120"
 extra_opts="nodev,nosuid,noexec"
 home_opts="nodev,nosuid"
-efi_opts="rw,noatime,nodiratime,nodev,nosuid,noexec,fmask=0077,dmask=0077"
+efi_opts="rw,noatime,nodiratime,nodev,nosuid,noexec,fmask=0022,dmask=0022"
 
 # Define subvolumes and their mount points
 declare -A subvolumes=(
