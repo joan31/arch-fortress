@@ -15,15 +15,16 @@ efi_opts="rw,noatime,nodiratime,nodev,nosuid,noexec,fmask=0077,dmask=0077"
 
 # Define subvolumes and their mount points
 declare -A subvolumes=(
-    [@swap]="/mnt/.swap"
-    [@snapshots]="/mnt/.snapshots"
-    [@efibck]="/mnt/.efibackup"
-    [@log]="/mnt/var/log"
-    [@pkg]="/mnt/var/cache/pacman/pkg"
-    [@vms]="/mnt/var/lib/libvirt/images"
-    [@tmp]="/mnt/tmp"
-    [@home]="/mnt/home"
-    [@srv]="/mnt/srv"
+  [@swap]="/mnt/.swap"
+  [@snapshots]="/mnt/.snapshots"
+  [@efibck]="/mnt/.efibackup"
+  [@log]="/mnt/var/log"
+  [@pkg]="/mnt/var/cache/pacman/pkg"
+  [@vms]="/mnt/var/lib/libvirt/images"
+  [@tmp]="/mnt/var/tmp"
+  [@home]="/mnt/home"
+  [@srv]="/mnt/srv"
+  [@games]="/mnt/opt/games"
 )
 
 # TPM
@@ -40,33 +41,33 @@ read -p "❓ Do you want to erase all signatures from disk /dev/nvme0n1? (y/N) "
 confirm_wipe=${confirm_wipe,,} # Convert to lowercase
 
 if [[ "$confirm_wipe" == "o" || "$confirm_wipe" == "oui" ]]; then
-    echo "🧹 Erasing disk signatures..."
-    wipefs --all /dev/nvme0n1
-    echo "✅ Wipe completed!"
+  echo "🧹 Erasing disk signatures..."
+  wipefs --all /dev/nvme0n1
+  echo "✅ Wipe completed!"
 else
-    echo "🚫 Wipe canceled."
+  echo "🚫 Wipe canceled."
 fi
 
 # Check TPM
 echo "🔍 Checking persistent objects in TPM..."
 if [ -z "$handles" ]; then
-    echo "✅ TPM already clean, no persistent entries found."
+  echo "✅ TPM already clean, no persistent entries found."
 else
-    echo "⚠️ The following objects are stored in TPM:"
-    echo "$handles"
+  echo "⚠️ The following objects are stored in TPM:"
+  echo "$handles"
 
-    read -p "❓ Do you want to delete them? (y/N) " confirm
-    confirm=${confirm,,} # Convert to lowercase
+  read -p "❓ Do you want to delete them? (y/N) " confirm
+  confirm=${confirm,,} # Convert to lowercase
 
-    if [[ "$confirm" == "o" || "$confirm" == "oui" ]]; then
-        echo "🧹 Removing persistent objects..."
-        for handle in $handles; do
-            echo "  ➜ Removing object: $handle"
-            tpm2_evictcontrol -c "$handle" > /dev/null 2>&1
-        done
-    else
-        echo "🚫 Deletion canceled."
-    fi
+  if [[ "$confirm" == "o" || "$confirm" == "oui" ]]; then
+    echo "🧹 Removing persistent objects..."
+    for handle in $handles; do
+      echo "  ➜ Removing object: $handle"
+      tpm2_evictcontrol -c "$handle" > /dev/null 2>&1
+    done
+  else
+    echo "🚫 Deletion canceled."
+  fi
 fi
 
 echo "🔄 Verifying after cleanup..."
@@ -74,20 +75,20 @@ remaining_persistent=$(tpm2_getcap handles-persistent)
 remaining_transient=$(tpm2_getcap handles-transient)
 
 if [ -z "$remaining_persistent" ] && [ -z "$remaining_transient" ]; then
-    echo "✅ TPM successfully cleaned! 🎉"
+  echo "✅ TPM successfully cleaned! 🎉"
 else
-    echo "⚠️ Some entries still persist:"
-    echo "🔸 Persistent: $remaining_persistent"
-    echo "🔸 Transient: $remaining_transient"
+  echo "⚠️ Some entries still persist:"
+  echo "🔸 Persistent: $remaining_persistent"
+  echo "🔸 Transient: $remaining_transient"
 fi
 
 # Create GPT partition table and EFI + LUKS partitions
 echo "🛠️ Creating partitions on /dev/nvme0n1..."
 sgdisk \
-    --clear --align-end \
-    --new=1:0:+500M --typecode=1:ef00 --change-name=1:"EFI system partition" \
-    --new=2:0:0 --typecode=2:8309 --change-name=2:"Linux LUKS" \
-    /dev/nvme0n1
+  --clear --align-end \
+  --new=1:0:+500M --typecode=1:ef00 --change-name=1:"EFI system partition" \
+  --new=2:0:0 --typecode=2:8309 --change-name=2:"Linux LUKS" \
+  /dev/nvme0n1
 
 echo "✅ Partitioning completed."
 
@@ -98,8 +99,8 @@ loadkeys fr
 # Remove all existing EFI boot entries
 echo "🧹 Cleaning EFI boot entries..."
 for bootnum in $(efibootmgr | grep -oP 'Boot\K[0-9A-F]{4}'); do
-    echo "  → Deleting EFI Boot entry $bootnum"
-    efibootmgr -b $bootnum -B
+  echo "  → Deleting EFI Boot entry $bootnum"
+  efibootmgr -b $bootnum -B
 done
 
 # Update GPG keys from live USB
@@ -113,17 +114,17 @@ mkfs.vfat -F 32 -n "SYSTEM" -S 4096 -s 1 /dev/nvme0n1p1
 # Create LUKS encrypted container
 echo "🔐 Creating LUKS encrypted container..."
 cryptsetup \
-    --type luks2 \
-    --cipher aes-xts-plain64 \
-    --hash sha512 \
-    --iter-time 5000 \
-    --key-size 512 \
-    --pbkdf argon2id \
-    --label "Linux LUKS" \
-    --sector-size 4096 \
-    --use-urandom \
-    --verify-passphrase \
-    luksFormat /dev/nvme0n1p2
+  --type luks2 \
+  --cipher aes-xts-plain64 \
+  --hash sha512 \
+  --iter-time 5000 \
+  --key-size 512 \
+  --pbkdf argon2id \
+  --label "Linux LUKS" \
+  --sector-size 4096 \
+  --use-urandom \
+  --verify-passphrase \
+  luksFormat /dev/nvme0n1p2
 
 # Open the LUKS container
 echo "🔓 Unlocking the LUKS container..."
@@ -138,8 +139,8 @@ echo "🔧 Mounting Btrfs root..."
 mount -o "$common_opts" /dev/mapper/cryptarch /mnt
 
 if ! mountpoint -q /mnt; then
-    echo "❌ Error: Could not mount /mnt!" >&2
-    exit 1
+  echo "❌ Error: Could not mount /mnt!" >&2
+  exit 1
 fi
 
 # Create subvolumes
@@ -148,8 +149,8 @@ echo "  → Creating @"
 btrfs subvolume create "/mnt/@"
 
 for subvol in "${!subvolumes[@]}"; do
-    echo "  → Creating $subvol"
-    btrfs subvolume create "/mnt/$subvol"
+  echo "  → Creating $subvol"
+  btrfs subvolume create "/mnt/$subvol"
 done
 
 # Unmount Btrfs root
@@ -166,13 +167,13 @@ mount -o "$common_opts,subvol=@" /dev/mapper/cryptarch /mnt
 # Mount other subvolumes
 echo "🔗 Mounting other subvolumes..."
 for subvol in "${!subvolumes[@]}"; do
-    echo "  → Mounting $subvol to ${subvolumes[$subvol]}"
-    case "$subvol" in
-        @home) opts="$common_opts,$home_opts" ;;
-        @swap|@snapshots|@efibck|@log|@pkg|@vms|@tmp|@srv) opts="$common_opts,$extra_opts" ;;
-    esac
-    mkdir -p "${subvolumes[$subvol]}"
-    mount -o "$opts,subvol=$subvol" /dev/mapper/cryptarch "${subvolumes[$subvol]}"
+  echo "  → Mounting $subvol to ${subvolumes[$subvol]}"
+  case "$subvol" in
+    @home|@games) opts="$common_opts,$home_opts" ;;
+    @swap|@snapshots|@efibck|@log|@pkg|@vms|@tmp|@srv) opts="$common_opts,$extra_opts" ;;
+  esac
+  mkdir -p "${subvolumes[$subvol]}"
+  mount -o "$opts,subvol=$subvol" /dev/mapper/cryptarch "${subvolumes[$subvol]}"
 done
 
 # Mount EFI separately
@@ -187,8 +188,8 @@ btrfs filesystem mkswapfile --size 4g /mnt/.swap/swapfile
 chmod 600 /mnt/.swap/swapfile
 
 if [[ ! -f /mnt/.swap/swapfile ]]; then
-    echo "❌ Error: Swapfile not created!" >&2
-    exit 1
+  echo "❌ Error: Swapfile not created!" >&2
+  exit 1
 fi
 
 # Install base packages
@@ -198,8 +199,8 @@ pacstrap /mnt base base-devel linux linux-firmware amd-ucode neovim efibootmgr b
 # Generate fstab with fsck enabled for @
 echo "📝 Generating fstab..."
 genfstab -U /mnt | awk '
-    /subvol=\/@([[:space:]]|,)/ { $6="1" }
-    { print $1"\t"$2"\t\t"$3"\t\t"$4"\t"$5,$6 }
+  /subvol=\/@([[:space:]]|,)/ { $6="1" }
+  { print $1"\t"$2"\t\t"$3"\t\t"$4"\t"$5,$6 }
 ' >> /mnt/etc/fstab
 
 echo -e "\n📊 Installation summary:"
@@ -207,9 +208,9 @@ echo -e "\n📊 Installation summary:"
 # Check if disk is GPT
 PART_TABLE=$(lsblk -o PTTYPE -nr /dev/nvme0n1 | head -n 1)
 if [[ "$PART_TABLE" == "gpt" ]]; then
-    echo -e "✅ Partitioning type: GPT"
+  echo -e "✅ Partitioning type: GPT"
 else
-    echo -e "❌ Partitioning type: NOT GPT ($PART_TABLE)"
+  echo -e "❌ Partitioning type: NOT GPT ($PART_TABLE)"
 fi
 read -p "↩️  Press Enter to continue..."
 
@@ -217,18 +218,18 @@ read -p "↩️  Press Enter to continue..."
 PART1_ALIGN=$(parted /dev/nvme0n1 align-check optimal 1)
 PART2_ALIGN=$(parted /dev/nvme0n1 align-check optimal 2)
 if [[ "$PART1_ALIGN" == "1 aligned" && "$PART2_ALIGN" == "2 aligned" ]]; then
-    echo -e "✅ Optimal alignment for EFI and LUKS partitions"
+  echo -e "✅ Optimal alignment for EFI and LUKS partitions"
 else
-    echo -e "❌ Non-optimal alignment for EFI and LUKS partitions ($PART1_ALIGN / $PART2_ALIGN)"
+  echo -e "❌ Non-optimal alignment for EFI and LUKS partitions ($PART1_ALIGN / $PART2_ALIGN)"
 fi
 read -p "↩️  Press Enter to continue..."
 
 # Check if NVMe uses physical 4K sectors
 PHYSICAL_BLOCK_SIZE=$(cat /sys/block/nvme0n1/queue/physical_block_size)
 if [[ "$PHYSICAL_BLOCK_SIZE" == "4096" ]]; then
-    echo -e "✅ NVMe disk detected with physical block size of 4K"
+  echo -e "✅ NVMe disk detected with physical block size of 4K"
 else
-    echo -e "❌ Warning: Disk has physical block size of $PHYSICAL_BLOCK_SIZE (not 4K)"
+  echo -e "❌ Warning: Disk has physical block size of $PHYSICAL_BLOCK_SIZE (not 4K)"
 fi
 read -p "↩️  Press Enter to continue..."
 
@@ -240,29 +241,29 @@ read -p "↩️  Press Enter to continue..."
 # List Btrfs subvolumes and mount points
 echo -e "\n📁 Btrfs subvolumes and mount points:"
 if btrfs subvolume list -p /mnt &>/dev/null; then
-    btrfs subvolume list -p /mnt | awk '{print "  ➜ " $NF}'
+  btrfs subvolume list -p /mnt | awk '{print "  ➜ " $NF}'
 else
-    echo "❌ Could not list subvolumes!"
+  echo "❌ Could not list subvolumes!"
 fi
 read -p "↩️  Press Enter to continue..."
 
 # Check swapfile presence
 if [[ -f /mnt/.swap/swapfile ]]; then
-    echo -e "\n🟡 Swapfile detected: /mnt/.swap/swapfile"
+  echo -e "\n🟡 Swapfile detected: /mnt/.swap/swapfile"
 else
-    echo -e "\n⚠️  No swapfile detected!"
+  echo -e "\n⚠️  No swapfile detected!"
 fi
 read -p "↩️  Press Enter to continue..."
 
 # Check and display fstab
 echo -e "\n📄 Checking fstab file:"
 if [[ -f /mnt/etc/fstab ]]; then
-    echo -e "✅ fstab found! Here's a preview:"
-    du -sh /mnt/etc/fstab
-    echo -e "\n📝 fstab content:"
-    cat /mnt/etc/fstab
+  echo -e "✅ fstab found! Here's a preview:"
+  du -sh /mnt/etc/fstab
+  echo -e "\n📝 fstab content:"
+  cat /mnt/etc/fstab
 else
-    echo -e "❌ fstab not found!"
+  echo -e "❌ fstab not found!"
 fi
 read -p "↩️  Press Enter to continue..."
 

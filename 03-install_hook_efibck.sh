@@ -10,20 +10,20 @@ SELF_PATH="$(realpath "$0")"
 
 # 🔒 Checking for root privileges
 if [[ $EUID -ne 0 ]]; then
-    echo "❌ This script must be run as root." >&2
-    exit 1
+  echo "❌ This script must be run as root." >&2
+  exit 1
 fi
 
 # 📁 Create the hooks directory if it doesn't exist
 if [[ ! -d "/etc/pacman.d/hooks" ]]; then
-    mkdir -p /etc/pacman.d/hooks
-    echo "✅ Directory /etc/pacman.d/hooks created."
+  mkdir -p /etc/pacman.d/hooks
+  echo "✅ Directory /etc/pacman.d/hooks created."
 fi
 
 # 💾 Create the EFI backup directory if it doesn't exist
 if [[ ! -d "$BACKUP_DIR" ]]; then
-    mkdir -p "$BACKUP_DIR"
-    echo "✅ Backup directory $BACKUP_DIR created."
+  mkdir -p "$BACKUP_DIR"
+  echo "✅ Backup directory $BACKUP_DIR created."
 fi
 
 # ✏️ Copy the hook

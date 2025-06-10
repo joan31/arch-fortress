@@ -7,19 +7,19 @@
 set -e
 
 log() {
-    echo -e "\e[1;32m[✔] $1 \e[0m"
+  echo -e "\e[1;32m[✔] $1 \e[0m"
 }
 
 log_step() {
-    echo -e "\e[1;34m[➡] $1 \e[0m"
+  echo -e "\e[1;34m[➡] $1 \e[0m"
 }
 
 log_warn() {
-    echo -e "\e[1;33m[⚠] $1 \e[0m"
+  echo -e "\e[1;33m[⚠] $1 \e[0m"
 }
 
 log_error() {
-    echo -e "\e[1;31m[✖] $1 \e[0m"
+  echo -e "\e[1;31m[✖] $1 \e[0m"
 }
 
 # Keyboard configuration
@@ -91,13 +91,13 @@ log "Kernel command line set ✅"
 # mkinitcpio preset for UKI
 log_step "Configuring mkinitcpio preset for UKI 🚀"
 sed -i \
-    -e "s/^PRESETS=('default' 'fallback')/PRESETS=('default')/" \
-    -e "s/^default_image=/#default_image=/" \
-    -e "s/^#default_uki=/default_uki=/" \
-    -e "s/^#default_options=/default_options=/" \
-    -e "s/^fallback_image=/#fallback_image=/" \
-    -e "s/^fallback_options=/#fallback_options=/" \
-    /etc/mkinitcpio.d/linux.preset
+  -e "s/^PRESETS=('default' 'fallback')/PRESETS=('default')/" \
+  -e "s/^default_image=/#default_image=/" \
+  -e "s/^#default_uki=/default_uki=/" \
+  -e "s/^#default_options=/default_options=/" \
+  -e "s/^fallback_image=/#fallback_image=/" \
+  -e "s/^fallback_options=/#fallback_options=/" \
+  /etc/mkinitcpio.d/linux.preset
 log "mkinitcpio preset configured successfully ✅"
 
 # Add LUKS key to TPM2
@@ -132,13 +132,13 @@ log "Swap configured ✅"
 # Enable multilib and pacman config
 log_step "Pacman configuration 📦"
 sed -i \
-    -e "s/^#NoExtract   =/NoExtract   = etc\/cron.daily\/snapper etc\/cron.hourly\/snapper/" \
-    -e "s/^#Color/Color/" \
-    -e "/^Color/a ILoveCandy" \
-    -e "s/^ParallelDownloads = [0-9]\+/ParallelDownloads = 10/" \
-    -e "s/^#\[multilib\]/[multilib]/" \
-    -e "s/^#Include = \/etc\/pacman.d\/mirrorlist/Include = \/etc\/pacman.d\/mirrorlist/" \
-    /etc/pacman.conf
+  -e "s/^#NoExtract   =/NoExtract   = etc\/cron.daily\/snapper etc\/cron.hourly\/snapper/" \
+  -e "s/^#Color/Color/" \
+  -e "/^Color/a ILoveCandy" \
+  -e "s/^ParallelDownloads = [0-9]\+/ParallelDownloads = 10/" \
+  -e "s/^#\[multilib\]/[multilib]/" \
+  -e "s/^#Include = \/etc\/pacman.d\/mirrorlist/Include = \/etc\/pacman.d\/mirrorlist/" \
+  /etc/pacman.conf
 log "Pacman configured ✅"
 
 # Network configuration 🌐
@@ -171,9 +171,9 @@ log "Packages installed successfully ✅"
 # NTP configuration 🕰️
 log_step "Configuring NTP servers for time sync ⏳"
 sed -i \
-    -e '/^NTP=/c\NTP=0.fr.pool.ntp.org 1.fr.pool.ntp.org 2.fr.pool.ntp.org 3.fr.pool.ntp.org' \
-    -e 's/^#FallbackNTP=/FallbackNTP=/' \
-    /etc/systemd/timesyncd.conf
+  -e '/^NTP=/c\NTP=0.fr.pool.ntp.org 1.fr.pool.ntp.org 2.fr.pool.ntp.org 3.fr.pool.ntp.org' \
+  -e 's/^#FallbackNTP=/FallbackNTP=/' \
+  /etc/systemd/timesyncd.conf
 log "NTP servers configured ✅"
 
 # NVMe rules 🚀
@@ -199,7 +199,6 @@ systemctl enable bluetooth.service
 systemctl enable systemd-timesyncd.service
 systemctl enable paccache.timer
 systemctl enable reflector.timer
-systemctl mask systemd-gpt-auto-generator
 log "Services enabled ✅"
 
 # Sudo configuration
@@ -213,17 +212,17 @@ log_step "Build optimization for better performance 🚀"
 # Update /etc/makepkg.conf
 log_step "Updating compile options in /etc/makepkg.conf 📝"
 sed -i \
-    -e 's|^CFLAGS="-march=x86-64 -mtune=generic|CFLAGS="-march=native|' \
-    -e 's|^#MAKEFLAGS=.*|MAKEFLAGS="-j$(nproc)"|' \
-    -e 's|^#BUILDDIR=.*|BUILDDIR=/tmp/makepkg|' \
-    /etc/makepkg.conf
+  -e 's|^CFLAGS="-march=x86-64 -mtune=generic|CFLAGS="-march=native|' \
+  -e 's|^#MAKEFLAGS=.*|MAKEFLAGS="-j$(nproc)"|' \
+  -e 's|^#BUILDDIR=.*|BUILDDIR=/tmp/makepkg|' \
+  /etc/makepkg.conf
 log "makepkg.conf optimized ✅"
 
 # Rust compilation optimization
 log_step "Rust compilation optimization 🦀"
 sed -i \
-    -e 's|^RUSTFLAGS=".*|RUSTFLAGS="-C opt-level=2 -C target-cpu=native"|' \
-    /etc/makepkg.conf.d/rust.conf
+  -e 's|^RUSTFLAGS=".*|RUSTFLAGS="-C opt-level=2 -C target-cpu=native"|' \
+  /etc/makepkg.conf.d/rust.conf
 log "Rust configuration optimized ✅"
 
 # Disable HDMI audio
