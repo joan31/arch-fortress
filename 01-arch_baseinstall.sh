@@ -1,19 +1,19 @@
 #!/bin/bash
-## INSTALLATION ARCH LINUX - BASE
+## ARCH LINUX INSTALLATION - BASE
 ## SYSTEMD INIT - LUKS - BTRFS - UKI - SECURE BOOT
 ## ./arch_baseinstall.sh
 ## By Joan https://github.com/joan31/
 
-set -e  # Arrêter le script en cas d'erreur
+set -e  # Stop the script on any error
 
 ## VARIABLES
-# Définition des options communes de montage
+# Define common mount options
 common_opts="rw,noatime,nodiratime,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120"
 extra_opts="nodev,nosuid,noexec"
 home_opts="nodev,nosuid"
 efi_opts="rw,noatime,nodiratime,nodev,nosuid,noexec,fmask=0077,dmask=0077"
 
-# Définition des subvolumes et leurs points de montage
+# Define subvolumes and their mount points
 declare -A subvolumes=(
     [@swap]="/mnt/.swap"
     [@snapshots]="/mnt/.snapshots"
@@ -30,88 +30,88 @@ declare -A subvolumes=(
 handles=$(tpm2_getcap handles-persistent | awk '{print $2}')
 
 ## MAIN
-# Supprime toutes les partitions et force GPT
-echo "🛠️ Initialisation du disque /dev/nvme0n1 en GPT..."
+# Wipe all partitions and enforce GPT
+echo "🛠️ Initializing disk /dev/nvme0n1 to GPT..."
 sgdisk --zap-all /dev/nvme0n1
 
-# Wipe complètement le disque
-echo "🔍 Vérification des artefacts d'un formatage précédent..."
-read -p "❓ Veux-tu effacer toutes les signatures du disque /dev/nvme0n1 ? (o/N) " confirm_wipe
-confirm_wipe=${confirm_wipe,,} # Conversion en minuscule
+# Completely wipe the disk
+echo "🔍 Checking for remnants of previous formatting..."
+read -p "❓ Do you want to erase all signatures from disk /dev/nvme0n1? (y/N) " confirm_wipe
+confirm_wipe=${confirm_wipe,,} # Convert to lowercase
 
 if [[ "$confirm_wipe" == "o" || "$confirm_wipe" == "oui" ]]; then
-    echo "🧹 Suppression des signatures du disque..."
+    echo "🧹 Erasing disk signatures..."
     wipefs --all /dev/nvme0n1
-    echo "✅ Wipe terminé !"
+    echo "✅ Wipe completed!"
 else
-    echo "🚫 Wipe annulé."
+    echo "🚫 Wipe canceled."
 fi
 
-# Vérifier le TPM
-echo "🔍 Vérification des objets persistants dans le TPM..."
+# Check TPM
+echo "🔍 Checking persistent objects in TPM..."
 if [ -z "$handles" ]; then
-    echo "✅ TPM déjà vide, aucune entrée persistante à supprimer."
+    echo "✅ TPM already clean, no persistent entries found."
 else
-    echo "⚠️ Les objets suivants sont stockés dans le TPM :"
+    echo "⚠️ The following objects are stored in TPM:"
     echo "$handles"
 
-    read -p "❓ Veux-tu les supprimer ? (o/N) " confirm
-    confirm=${confirm,,} # Conversion en minuscule
+    read -p "❓ Do you want to delete them? (y/N) " confirm
+    confirm=${confirm,,} # Convert to lowercase
 
     if [[ "$confirm" == "o" || "$confirm" == "oui" ]]; then
-        echo "🧹 Suppression des objets persistants..."
+        echo "🧹 Removing persistent objects..."
         for handle in $handles; do
-            echo "  ➜ Suppression de l'objet : $handle"
+            echo "  ➜ Removing object: $handle"
             tpm2_evictcontrol -c "$handle" > /dev/null 2>&1
         done
     else
-        echo "🚫 Suppression annulée."
+        echo "🚫 Deletion canceled."
     fi
 fi
 
-echo "🔄 Vérification après suppression..."
+echo "🔄 Verifying after cleanup..."
 remaining_persistent=$(tpm2_getcap handles-persistent)
 remaining_transient=$(tpm2_getcap handles-transient)
 
 if [ -z "$remaining_persistent" ] && [ -z "$remaining_transient" ]; then
-    echo "✅ TPM nettoyé avec succès ! 🎉"
+    echo "✅ TPM successfully cleaned! 🎉"
 else
-    echo "⚠️ Certaines entrées persistent encore :"
+    echo "⚠️ Some entries still persist:"
     echo "🔸 Persistent: $remaining_persistent"
     echo "🔸 Transient: $remaining_transient"
 fi
 
-# Création de la table de partition GPT et des partitions EFI + LUKS avec sgdisk
-echo "🛠️ Création des partitions sur /dev/nvme0n1..."
+# Create GPT partition table and EFI + LUKS partitions
+echo "🛠️ Creating partitions on /dev/nvme0n1..."
 sgdisk \
     --clear --align-end \
     --new=1:0:+500M --typecode=1:ef00 --change-name=1:"EFI system partition" \
     --new=2:0:0 --typecode=2:8309 --change-name=2:"Linux LUKS" \
     /dev/nvme0n1
-       
-echo "✅ Partitionnement terminé."
 
-# Activation du clavier français pour la console
-echo "⌨️ Activation du clavier français..."
+echo "✅ Partitioning completed."
+
+# Set French keyboard layout for console
+echo "⌨️ Setting French keyboard layout..."
 loadkeys fr
 
-# Suppression de toutes les entrées EFI existantes
-echo "🧹 Nettoyage des entrées EFI..."
+# Remove all existing EFI boot entries
+echo "🧹 Cleaning EFI boot entries..."
 for bootnum in $(efibootmgr | grep -oP 'Boot\K[0-9A-F]{4}'); do
-    echo "  → Suppression de l'entrée EFI Boot$bootnum"
+    echo "  → Deleting EFI Boot entry $bootnum"
     efibootmgr -b $bootnum -B
 done
 
-# Mise à jour des clés GPG du live USB
-echo "🔑 Mise à jour des clés GPG..."
+# Update GPG keys from live USB
+echo "🔑 Updating GPG keys..."
 pacman -Sy archlinux-keyring
 
-# Formatage de la partition EFI (optimisation pour NVMe 4K)
-echo "💾 Formatage de la partition EFI..."
+# Format the EFI partition (optimized for 4K NVMe)
+echo "💾 Formatting the EFI partition..."
 mkfs.vfat -F 32 -n "SYSTEM" -S 4096 -s 1 /dev/nvme0n1p1
 
-# Création du conteneur chiffré LUKS
-echo "🔐 Création du conteneur chiffré LUKS..."
+# Create LUKS encrypted container
+echo "🔐 Creating LUKS encrypted container..."
 cryptsetup \
     --type luks2 \
     --cipher aes-xts-plain64 \
@@ -125,48 +125,48 @@ cryptsetup \
     --verify-passphrase \
     luksFormat /dev/nvme0n1p2
 
-# Accès au conteneur LUKS
-echo "🔓 Déverrouillage du conteneur LUKS..."
+# Open the LUKS container
+echo "🔓 Unlocking the LUKS container..."
 cryptsetup --allow-discards --persistent open --type luks2 /dev/nvme0n1p2 cryptarch
 
-# Formatage du conteneur LUKS en Btrfs
-echo "🗂 Formatage du conteneur LUKS en Btrfs..."
+# Format LUKS container as Btrfs
+echo "🗂 Formatting the LUKS container as Btrfs..."
 mkfs.btrfs -L "Arch Linux" -s 4096 /dev/mapper/cryptarch
 
-# Monter la racine du Btrfs pour créer les subvolumes
-echo "🔧 Montage de la racine Btrfs..."
+# Mount Btrfs root to create subvolumes
+echo "🔧 Mounting Btrfs root..."
 mount -o "$common_opts" /dev/mapper/cryptarch /mnt
 
 if ! mountpoint -q /mnt; then
-    echo "❌ Erreur : Impossible de monter /mnt !" >&2
+    echo "❌ Error: Could not mount /mnt!" >&2
     exit 1
 fi
 
-# Création des subvolumes
-echo "📂 Création des subvolumes..."
-echo "  → Création de @"
+# Create subvolumes
+echo "📂 Creating subvolumes..."
+echo "  → Creating @"
 btrfs subvolume create "/mnt/@"
 
 for subvol in "${!subvolumes[@]}"; do
-    echo "  → Création de $subvol"
+    echo "  → Creating $subvol"
     btrfs subvolume create "/mnt/$subvol"
 done
 
-# Démonter la racine Btrfs
+# Unmount Btrfs root
 umount /mnt
 
-# Monter les subvolumes avec les options appropriées
-echo "🔗 Montage des subvolumes..."
+# Mount subvolumes with appropriate options
+echo "🔗 Mounting subvolumes..."
 
-# Monter la racine root @ en premier
-echo "🔗 Montage du subvolume racine..."
-echo "  → Montage de @ sur /mnt"
+# Mount root subvolume @ first
+echo "🔗 Mounting root subvolume..."
+echo "  → Mounting @ to /mnt"
 mount -o "$common_opts,subvol=@" /dev/mapper/cryptarch /mnt
 
-# Monter les autres subvolumes
-echo "🔗 Montage des autres subvolumes..."
+# Mount other subvolumes
+echo "🔗 Mounting other subvolumes..."
 for subvol in "${!subvolumes[@]}"; do
-    echo "  → Montage de $subvol sur ${subvolumes[$subvol]}"
+    echo "  → Mounting $subvol to ${subvolumes[$subvol]}"
     case "$subvol" in
         @home) opts="$common_opts,$home_opts" ;;
         @swap|@snapshots|@efibck|@log|@pkg|@vms|@tmp|@srv) opts="$common_opts,$extra_opts" ;;
@@ -175,98 +175,98 @@ for subvol in "${!subvolumes[@]}"; do
     mount -o "$opts,subvol=$subvol" /dev/mapper/cryptarch "${subvolumes[$subvol]}"
 done
 
-# Monter EFI séparément
-echo "🔗 Montage de la partition SYSTEM EFI..."
-echo "  → Montage de /dev/nvme0n1p1 sur /mnt/efi"
+# Mount EFI separately
+echo "🔗 Mounting SYSTEM EFI partition..."
+echo "  → Mounting /dev/nvme0n1p1 to /mnt/efi"
 mkdir /mnt/efi
 mount -o "$efi_opts" /dev/nvme0n1p1 /mnt/efi
 
-# Création du swapfile Btrfs
-echo "💾 Création du swapfile..."
+# Create Btrfs swapfile
+echo "💾 Creating swapfile..."
 btrfs filesystem mkswapfile --size 4g /mnt/.swap/swapfile
 chmod 600 /mnt/.swap/swapfile
 
 if [[ ! -f /mnt/.swap/swapfile ]]; then
-    echo "❌ Erreur : Swapfile non créé !" >&2
+    echo "❌ Error: Swapfile not created!" >&2
     exit 1
 fi
 
-# Installation des paquets de base
-echo "📦 Installation des paquets de base..."
+# Install base packages
+echo "📦 Installing base packages..."
 pacstrap /mnt base base-devel linux linux-firmware amd-ucode neovim efibootmgr btrfs-progs sbctl
 
-# Génération du fichier fstab avec activation de fsck pour @
-echo "📝 Génération du fichier fstab..."
+# Generate fstab with fsck enabled for @
+echo "📝 Generating fstab..."
 genfstab -U /mnt | awk '
     /subvol=\/@([[:space:]]|,)/ { $6="1" }
     { print $1"\t"$2"\t\t"$3"\t\t"$4"\t"$5,$6 }
 ' >> /mnt/etc/fstab
 
-echo -e "\n📊 Récapitulatif de l'installation :"
+echo -e "\n📊 Installation summary:"
 
-# Vérifier si le disque est en GPT
+# Check if disk is GPT
 PART_TABLE=$(lsblk -o PTTYPE -nr /dev/nvme0n1 | head -n 1)
 if [[ "$PART_TABLE" == "gpt" ]]; then
-    echo -e "✅ Type de partitionnement : GPT"
+    echo -e "✅ Partitioning type: GPT"
 else
-    echo -e "❌ Type de partitionnement : NON GPT ($PART_TABLE)"
+    echo -e "❌ Partitioning type: NOT GPT ($PART_TABLE)"
 fi
-read -p "↩️  Appuyez sur Entrée pour continuer..."
+read -p "↩️  Press Enter to continue..."
 
-# Vérifier si les partitions sont bien alignés
+# Check if partitions are aligned
 PART1_ALIGN=$(parted /dev/nvme0n1 align-check optimal 1)
 PART2_ALIGN=$(parted /dev/nvme0n1 align-check optimal 2)
 if [[ "$PART1_ALIGN" == "1 aligned" && "$PART2_ALIGN" == "2 aligned" ]]; then
-    echo -e "✅ Alignement optimal des partitions EFI et LUKS"
+    echo -e "✅ Optimal alignment for EFI and LUKS partitions"
 else
-    echo -e "❌ Alignement non optimal des partitions EFI et LUKS ($PART1_ALIGN / $PART2_ALIGN)"
+    echo -e "❌ Non-optimal alignment for EFI and LUKS partitions ($PART1_ALIGN / $PART2_ALIGN)"
 fi
-read -p "↩️  Appuyez sur Entrée pour continuer..."
+read -p "↩️  Press Enter to continue..."
 
-# Vérifier si le NVMe est bien en secteur physique 4K
+# Check if NVMe uses physical 4K sectors
 PHYSICAL_BLOCK_SIZE=$(cat /sys/block/nvme0n1/queue/physical_block_size)
 if [[ "$PHYSICAL_BLOCK_SIZE" == "4096" ]]; then
-    echo -e "✅ Disque NVMe détecté avec une taille physique de 4K"
+    echo -e "✅ NVMe disk detected with physical block size of 4K"
 else
-    echo -e "❌ Attention : Le disque a une taille de bloc physique de $PHYSICAL_BLOCK_SIZE (pas 4K)"
+    echo -e "❌ Warning: Disk has physical block size of $PHYSICAL_BLOCK_SIZE (not 4K)"
 fi
-read -p "↩️  Appuyez sur Entrée pour continuer..."
+read -p "↩️  Press Enter to continue..."
 
-# Liste des partitions avec taille, format, nom
-echo -e "\n🖥️  Liste des partitions :"
+# List partitions with size, format, label
+echo -e "\n🖥️  Partition list:"
 lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINT -nr /dev/nvme0n1
-read -p "↩️  Appuyez sur Entrée pour continuer..."
+read -p "↩️  Press Enter to continue..."
 
-# Liste des subvolumes Btrfs et points de montage
-echo -e "\n📁 Subvolumes Btrfs et points de montage :"
+# List Btrfs subvolumes and mount points
+echo -e "\n📁 Btrfs subvolumes and mount points:"
 if btrfs subvolume list -p /mnt &>/dev/null; then
     btrfs subvolume list -p /mnt | awk '{print "  ➜ " $NF}'
 else
-    echo "❌ Impossible de lister les subvolumes !"
+    echo "❌ Could not list subvolumes!"
 fi
-read -p "↩️  Appuyez sur Entrée pour continuer..."
+read -p "↩️  Press Enter to continue..."
 
-# Vérifier la présence de la swapfile
+# Check swapfile presence
 if [[ -f /mnt/.swap/swapfile ]]; then
-    echo -e "\n🟡 Swapfile détectée : /mnt/.swap/swapfile"
+    echo -e "\n🟡 Swapfile detected: /mnt/.swap/swapfile"
 else
-    echo -e "\n⚠️  Aucune swapfile détectée !"
+    echo -e "\n⚠️  No swapfile detected!"
 fi
-read -p "↩️  Appuyez sur Entrée pour continuer..."
+read -p "↩️  Press Enter to continue..."
 
-# Vérifier la présence et le contenu du fstab
-echo -e "\n📄 Vérification du fichier fstab :"
+# Check and display fstab
+echo -e "\n📄 Checking fstab file:"
 if [[ -f /mnt/etc/fstab ]]; then
-    echo -e "✅ fstab détecté ! Voici un aperçu :"
+    echo -e "✅ fstab found! Here's a preview:"
     du -sh /mnt/etc/fstab
-    echo -e "\n📝 Contenu du fstab :"
+    echo -e "\n📝 fstab content:"
     cat /mnt/etc/fstab
 else
-    echo -e "❌ fstab non trouvé !"
+    echo -e "❌ fstab not found!"
 fi
-read -p "↩️  Appuyez sur Entrée pour continuer..."
+read -p "↩️  Press Enter to continue..."
 
-# Fin
-echo -e "\n🚀 Installation de base terminée !"
-echo -e "🐧 Vous pouvez maintenant entrer dans l'environnement chroot pour configurer votre système :\n"
+# End
+echo -e "\n🚀 Base installation complete!"
+echo -e "🐧 You can now chroot into the system to continue setup:\n"
 echo -e "   ➜  \e[1;32march-chroot /mnt\e[0m"

@@ -1,5 +1,5 @@
 #!/bin/bash
-## 🚀 INSTALLATION DU HOOK PACMAN EFI BACKUP
+## 🚀 INSTALLATION OF THE PACMAN EFI BACKUP HOOK
 ## ./install_hook_efibck.sh
 ## By Joan https://github.com/joan31/
 
@@ -8,27 +8,27 @@ SCRIPT_PATH="/usr/local/sbin/efi_backup.sh"
 BACKUP_DIR="/.efibackup"
 SELF_PATH="$(realpath "$0")"
 
-# 🔒 Vérification des droits root
+# 🔒 Checking for root privileges
 if [[ $EUID -ne 0 ]]; then
-    echo "❌ Ce script doit être exécuté en tant que root." >&2
+    echo "❌ This script must be run as root." >&2
     exit 1
 fi
 
-# 📁 Création du répertoire de hook s'il n'existe pas
+# 📁 Create the hooks directory if it doesn't exist
 if [[ ! -d "/etc/pacman.d/hooks" ]]; then
     mkdir -p /etc/pacman.d/hooks
-    echo "✅ Répertoire /etc/pacman.d/hooks créé."
+    echo "✅ Directory /etc/pacman.d/hooks created."
 fi
 
-# 💾 Création du répertoire de sauvegarde EFI s'il n'existe pas
+# 💾 Create the EFI backup directory if it doesn't exist
 if [[ ! -d "$BACKUP_DIR" ]]; then
     mkdir -p "$BACKUP_DIR"
-    echo "✅ Répertoire de sauvegarde $BACKUP_DIR créé."
+    echo "✅ Backup directory $BACKUP_DIR created."
 fi
 
-# ✏️ Copie du hook
+# ✏️ Copy the hook
 cat << EOF > "$HOOK_PATH"
-## 🪝 HOOK PACMAN EFI BACKUP
+## 🪝 PACMAN EFI BACKUP HOOK
 ## /etc/pacman.d/hooks/10-efi_backup.hook
 ## By Joan https://github.com/joan31/
 
@@ -57,10 +57,10 @@ When = PostTransaction
 Exec = /usr/local/sbin/efi_backup.sh
 EOF
 
-# 📝 Copie du script de sauvegarde EFI
+# 📝 Copy the EFI backup script
 cat << 'EOF' > "$SCRIPT_PATH"
 #!/bin/bash
-## 🗃️ SCRIPT EFI BACKUP
+## 🗃️ EFI BACKUP SCRIPT
 ## /usr/local/sbin/efi_backup.sh
 ## By Joan https://github.com/joan31/
 
@@ -68,17 +68,17 @@ tar -czf "/.efibackup/efi-$(date +%Y%m%d-%H%M%S).tar.gz" -C / efi
 ls -1t /.efibackup/efi-*.tar.gz | tail -n +4 | xargs -r rm --
 EOF
 
-# 🔑 Attribution des permissions
+# 🔑 Set permissions
 chmod 755 "$SCRIPT_PATH"
 chmod 644 "$HOOK_PATH"
-echo "🔧 Permissions définies."
+echo "🔧 Permissions set."
 
-# 🌟 Première sauvegarde
-echo "🗃️ Lancement d'une première sauvegarde EFI..."
+# 🌟 Initial backup
+echo "🗃️ Starting initial EFI backup..."
 bash "$SCRIPT_PATH"
-echo "✅ Première sauvegarde effectuée."
+echo "✅ Initial backup completed."
 
-# 🧹 Suppression du script d'installation
-echo "🗑️ Suppression du script d'installation : $SELF_PATH"
+# 🧹 Remove installation script
+echo "🗑️ Removing installation script: $SELF_PATH"
 rm -f "$SELF_PATH"
-echo "🎉 Installation et nettoyage effectués avec succès."
+echo "🎉 Installation and cleanup completed successfully."
