@@ -1,0 +1,27 @@
+## HOOK PACMAN EFI BACKUP
+## /etc/pacman.d/hooks/10-efi_backup.hook
+## By Joan https://github.com/joan31/
+
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Target = usr/lib/initcpio/*
+Target = usr/lib/firmware/*
+Target = usr/lib/modules/*/extramodules/
+Target = usr/lib/modules/*/vmlinuz
+Target = usr/src/*/dkms.conf
+
+[Trigger]
+Type = Package
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Target = mkinitcpio
+Target = mkinitcpio-git
+
+[Action]
+Description = Backing up /efi...
+When = PostTransaction
+Exec = /usr/local/sbin/efi_backup.sh
