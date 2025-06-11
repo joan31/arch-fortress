@@ -1,6 +1,5 @@
 ## HOOK PACMAN EFI BACKUP
 ## /etc/pacman.d/hooks/10-efi_backup.hook
-## By Joan https://github.com/joan31/
 
 [Trigger]
 Type = Path
