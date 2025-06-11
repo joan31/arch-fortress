@@ -195,6 +195,76 @@ Boot process:
 
 ---
 
+## 🔧 Mount Options Summary
+
+### 📂 Mount Points and Options
+
+| 📍 Mount Point | 💽 Device | 🗂️ Subvolume | ⚙️ Mount Options |
+|---|---|---|---|
+| `/` | `/dev/mapper/cryptarch` | `@` | `rw,noatime,nodiratime,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120` |
+| `/efi` | `/dev/nvme0n1p1` | *(N/A)* | `rw,noatime,nodiratime,nodev,nosuid,noexec,fmask=0022,dmask=0022` |
+| `/.swap` | `/dev/mapper/cryptarch` | `@swap` | `rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120` |
+| `/.snapshots` | `/dev/mapper/cryptarch` | `@snapshots` | `rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120` |
+| `/.efibackup` | `/dev/mapper/cryptarch` | `@efibck` | `rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120` |
+| `/var/log` | `/dev/mapper/cryptarch` | `@log` | `rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120` |
+| `/var/tmp` | `/dev/mapper/cryptarch` | `@tmp` | `rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120` |
+| `/var/cache/pacman/pkg` | `/dev/mapper/cryptarch` | `@pkg` | `rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120` |
+| `/var/lib/libvirt/images` | `/dev/mapper/cryptarch` | `@vms` | `rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120` |
+| `/home` | `/dev/mapper/cryptarch` | `@home` | `rw,noatime,nodiratime,nodev,nosuid,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120` |
+| `/srv` | `/dev/mapper/cryptarch` | `@srv` | `rw,noatime,nodiratime,nodev,nosuid,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120` |
+| `/opt/games` | `/dev/mapper/cryptarch` | `@games` | `rw,noatime,nodiratime,nodev,nosuid,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120` |
+
+---
+
+### 📖 Mount Options Explanation
+
+| ⚙️ Option | 🔎 Description | 🏷️ Category |
+|---|---|---|
+| `rw` | Mount as read-write. | 🔧 Default |
+| `noatime` | Do not update file access times (improves performance, reduces SSD writes). | 🚀 Performance |
+| `nodiratime` | Do not update directory access times (even more efficient than `noatime`). | 🚀 Performance |
+| `nodev` | Prevents character/block device files from being interpreted (security hardening). | 🔒 Security |
+| `nosuid` | Disable set-user-ID and set-group-ID bits (security hardening). | 🔒 Security |
+| `noexec` | Prevent execution of binaries on this mount (security hardening). | 🔒 Security |
+| `fmask=0022` | File mask for default file permissions on FAT32 (755 for files). | 🔒 Security |
+| `dmask=0022` | Directory mask for default directory permissions on FAT32 (755 for dirs). | 🔒 Security |
+| `compress=zstd:3` | Use Zstandard compression (level 3: good balance between speed and compression ratio). | 💾 Performance/Storage |
+| `ssd` | Optimize for SSD (disables unnecessary spinning disk optimizations). | 🚀 Performance |
+| `discard=async` | Asynchronous TRIM: notify SSD of free blocks asynchronously (less I/O overhead). | 💾 Performance |
+| `space_cache=v2` | Improved Btrfs space cache version 2 (better mount speed, reliability). | 🚀 Performance |
+| `commit=120` | Flush changes to disk every 120s (reduces write amplification). | 💾 Performance |
+| `subvol=@...` | Mount specific Btrfs subvolume. | 📂 Btrfs Feature |
+
+---
+
+### 🔎 Why these mount options?
+
+These options are carefully chosen for:
+
+- 🚀 **Performance**: optimized for SSDs and minimizing unnecessary I/O.
+- 🔒 **Security**: limiting execution and device files where not needed.
+- 💾 **Reliability**: with Btrfs improvements (`space_cache=v2`, `commit=120`).
+- 📂 **Granular subvolume management**: easy snapshot, rollback, backup management.
+
+---
+
+### ✅ Quick Summary
+
+| 🎯 Aspect | ⚙️ Strategy |
+|---|---|
+| SSD optimization | `ssd`, `discard=async` |
+| Reduce writes | `noatime`, `nodiratime`, `commit=120` |
+| Compression | `compress=zstd:3` |
+| Security hardening | `nosuid`, `nodev`, `noexec` |
+| Faster mounts | `space_cache=v2` |
+| Granular control | Subvolumes (`@home`, `@swap`, `@log`...) |
+
+---
+
+**✅ READY FOR PRODUCTION 🖥️**
+
+---
+
 ## 🚀 Automatic Installation (WIP)
 
 > 🧪 Coming soon: Full auto-install script with configuration prompts or flags.
