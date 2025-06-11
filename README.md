@@ -26,6 +26,7 @@ It aims to provide a **solid base system** for advanced users who want a clean, 
 - [⚙️ Features](#️-features)
 - [📦 Project Structure](#-project-structure)
 - [🗂️ Disk Layout & Subvolume Architecture](#️-disk-layout--subvolume-architecture)
+- [🔧 Mount Options Summary](#-mount-options-summary)
 - [🚀 Automatic Installation (WIP)](#-automatic-installation-wip)
 - [📖 Manual Installation (Step-by-step)](#-manual-installation-step-by-step)
 - [❓ FAQ](#-faq)
@@ -42,7 +43,7 @@ A fully modern, encrypted and bootloader-less Arch Linux installation with:
 
 - 🧊 **BTRFS** root with subvolumes and **snapper** for snapshot management
 - 🔐 **LUKS2 encryption** for root with **TPM2** auto-unlocking and passphrase fallback
-- 💾 Encrypted **swap file** + **zswap** for compressed memory
+- 💾 Encrypted **swap file**
 - 🔁 **Direct EFI boot** via a signed **Unified Kernel Image (UKI)** — no bootloader (no GRUB, no systemd-boot)
 - 💥 Full **Secure Boot** support
 - 🧠 Modern `mkinitcpio` using **systemd init hooks**
@@ -858,11 +859,10 @@ nvim /usr/local/sbin/efi_backup.sh
 
 # Content:
 #!/bin/bash
+## SCRIPT EFI BACKUP
+## /usr/local/sbin/efi_backup.sh
 
-# 📦 Backup /efi into a timestamped archive
-tar -czf "/.efibackup/efi-$(date +%Y%m%d-%H%M%S).tar.gz" -C / efi
-
-# 🧽 Keep only the last 3 backups
+tar -czf "/.efibackup/efi-$(date +%Y%m%d-%H%M%S).tar.gz" -C / efi;
 ls -1t /.efibackup/efi-*.tar.gz | tail -n +4 | xargs -r rm --
 
 # ✅ Make it executable
