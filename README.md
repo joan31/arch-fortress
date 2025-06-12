@@ -450,7 +450,7 @@ pacstrap /mnt \
 genfstab -U /mnt >> /mnt/etc/fstab
 ```
 
-- 🔍 (Optional) Review fstab and check "0 1" to enable fsck on /
+- 🔍 (Optional) Review fstab and check "0 1" to enable fsck on `/`
 ```bash
 nvim /mnt/etc/fstab
 ```
@@ -1069,6 +1069,7 @@ Yes — it's ideal for modern laptops with TPM2 and Secure Boot enabled.
 - 🧷 Secure Boot support
 - 💿 Recent Arch Linux ISO
 - 🌐 Internet access
+- 🧮 NVMe drive with 4K physical block size
 
 ---
 
