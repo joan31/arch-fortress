@@ -853,7 +853,7 @@ Target = mkinitcpio
 Target = mkinitcpio-git
 
 [Action]
-Description = 🔐 Backing up /efi...
+Description = Backing up /efi...
 When = PreTransaction
 Exec = /usr/local/sbin/efi_backup.sh
 
