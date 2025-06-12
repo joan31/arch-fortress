@@ -312,22 +312,26 @@ This section will provide all individual shell commands used in the installation
 
 ### 🧱 Step 1 — Pre-Installation Setup
 
+- ⌨️ (Optional) Set keyboard layout to French
 ```bash
-# ⌨️ (Optional) Set keyboard layout to French
 loadkeys fr
+```
 
-# 🧼 Clean existing EFI entries if needed (replace X with the entry number)
+- 🧼 Clean existing EFI entries if needed (replace X with the entry number)
+```bash
 efibootmgr
 efibootmgr -b X -B
+```
 
-# 🔐 Update GPG keys from live environment (recommended before installing)
+- 🔐 Update GPG keys from live environment (recommended before installing)
+```bash
 pacman -Sy archlinux-keyring
 ```
 
 ### 💽 Step 2 — Disk Partitioning (GPT)
 
+- ⚙️ Partition the disk: EFI (500MB) + LUKS root (rest of disk)
 ```bash
-# ⚙️ Partition the disk: EFI (500MB) + LUKS root (rest of disk)
 sgdisk --clear --align-end \
   --new=1:0:+500M --typecode=1:ef00 --change-name=1:"EFI system partition" \
   --new=2:0:0 --typecode=2:8309 --change-name=2:"Linux LUKS" \
@@ -336,32 +340,41 @@ sgdisk --clear --align-end \
 
 ### 🧼 Step 3 — Filesystem Creation
 
-```bash
-# 🧴 Format EFI partition (optimized for NVMe 4K sector size)
-mkfs.vfat -F 32 -n "SYSTEM" -S 4096 -s 1 /dev/nvme0n1p1
 
-# 🔐 Create LUKS2 encrypted container with strong encryption options
+- 🧴 Format EFI partition (optimized for NVMe 4K sector size)
+```bash
+mkfs.vfat -F 32 -n "SYSTEM" -S 4096 -s 1 /dev/nvme0n1p1
+```
+
+- 🔐 Create LUKS2 encrypted container with strong encryption options
+```bash
 cryptsetup --type luks2 --cipher aes-xts-plain64 --hash sha512 \
   --iter-time 5000 --key-size 512 --pbkdf argon2id \
   --label "Linux LUKS" --sector-size 4096 --use-urandom \
   --verify-passphrase luksFormat /dev/nvme0n1p2
+```
 
-# 🔓 Open the LUKS container as /dev/mapper/cryptarch
+- 🔓 Open the LUKS container as /dev/mapper/cryptarch
+```bash
 cryptsetup --allow-discards --persistent open --type luks2 \
   /dev/nvme0n1p2 cryptarch
+```
 
-# 🧊 Format the unlocked LUKS volume with BTRFS (4K sectors)
+- 🧊 Format the unlocked LUKS volume with BTRFS (4K sectors)
+```bash
 mkfs.btrfs -L "Arch Linux" -s 4096 /dev/mapper/cryptarch
 ```
 
 ### 🌳 Step 4 — BTRFS Subvolume Layout
 
+- 🪵 Mount the root BTRFS volume temporarily
 ```bash
-# 🪵 Mount the root BTRFS volume temporarily
 mount -o rw,noatime,nodiratime,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120 \
   /dev/mapper/cryptarch /mnt
+```
 
-# 📂 Create BTRFS subvolumes
+- 📂 Create BTRFS subvolumes
+```bash
 btrfs subvolume create /mnt/@
 btrfs subvolume create /mnt/@swap
 btrfs subvolume create /mnt/@snapshots
@@ -373,26 +386,34 @@ btrfs subvolume create /mnt/@vms
 btrfs subvolume create /mnt/@home
 btrfs subvolume create /mnt/@srv
 btrfs subvolume create /mnt/@games
+```
 
-# 🔓 Unmount the volume before remounting subvolumes individually
+- 🔓 Unmount the volume before remounting subvolumes individually
+```bash
 umount /mnt
 ```
 
 ### 🛠️ Step 5 — Mount Subvolumes & Prepare System
 
+- 🔧 Mount root subvolume
 ```bash
-# 🔧 Mount root subvolume
 mount -o rw,noatime,nodiratime,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@ \
   /dev/mapper/cryptarch /mnt
+```
 
-# 🗂️ Create necessary mount points
+- 🗂️ Create necessary mount points
+```bash
 mkdir -p /mnt/{efi,.swap,.snapshots,.efibackup,var/{log,tmp,cache/pacman/pkg,lib/libvirt/images},home,srv,opt/games}
+```
 
-# 🖥️ Mount EFI system partition (read-only, noexec for safety)
+- 🖥️ Mount EFI system partition (read-only, noexec for safety)
+```bash
 mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,fmask=0022,dmask=0022 \
   /dev/nvme0n1p1 /mnt/efi
+```
 
-# 🧷 Mount other BTRFS subvolumes
+- 🧷 Mount other BTRFS subvolumes
+```bash
 mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@swap /dev/mapper/cryptarch /mnt/.swap
 mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@snapshots /dev/mapper/cryptarch /mnt/.snapshots
 mount -o rw,noatime,nodiratime,nodev,nosuid,noexec,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=@efibck /dev/mapper/cryptarch /mnt/.efibackup
@@ -407,16 +428,16 @@ mount -o rw,noatime,nodiratime,nodev,nosuid,compress=zstd:3,ssd,discard=async,sp
 
 ### 💾 Step 6 — Create Swap File
 
+- 🛏️ Create 4GB swap file on BTRFS subvolume
 ```bash
-# 🛏️ Create 4GB swap file on BTRFS subvolume
 btrfs filesystem mkswapfile --size 4g /mnt/.swap/swapfile
 chmod 600 /mnt/.swap/swapfile
 ```
 
 ### 📦 Step 7 — Install Base System
 
+- 🧱 Install base packages + firmware, EFI tools, btrfs support, text editor and secure boot tools
 ```bash
-# 🧱 Install base packages + firmware, EFI tools, btrfs support, text editor and secure boot tools
 pacstrap /mnt \
   base base-devel linux linux-firmware amd-ucode \
   neovim efibootmgr btrfs-progs sbctl
@@ -424,78 +445,102 @@ pacstrap /mnt \
 
 ### 🗂️ Step 8 — Generate fstab
 
+- 📄 Generate fstab with UUIDs
 ```bash
-# 📄 Generate fstab with UUIDs
 genfstab -U /mnt >> /mnt/etc/fstab
+```
 
-# 🔍 (Optional) Review fstab and check "0 1" to enable fsck on /
+- 🔍 (Optional) Review fstab and check "0 1" to enable fsck on /
+```bash
 nvim /mnt/etc/fstab
+```
 
-# Content:
+- Content:
+```bash
 UUID=<BTRFS-UUID-PARTITION>      /      btrfs      rw,noatime,nodiratime,compress=zstd:3,ssd,discard=async,space_cache=v2,commit=120,subvol=/@      0 1
 ```
 
 ### 🚪 Step 9 — Enter Chroot
 
+- 🌀 Change root into new system
 ```bash
-# 🌀 Change root into new system
 arch-chroot /mnt
 ```
 
 ### 🌐 Step 10 — Keyboard & Locale Configuration
 
+- ⌨️ Set virtual console keyboard to French
 ```bash
-# ⌨️ Set virtual console keyboard to French
 nvim /etc/vconsole.conf
+```
 
-# Content:
+- Content:
+```bash
 KEYMAP=fr
 FONT=lat9w-16
+```
 
-# 🌍 Set system-wide locale
+- 🌍 Set system-wide locale
+```bash
 nvim /etc/locale.conf
+```
 
-# Content:
+- Content:
+```bash
 LANG=fr_FR.UTF-8
 LC_COLLATE=C
 LC_MESSAGES=en_US.UTF-8
+```
 
-# 🔓 Enable required locales
+- 🔓 Enable required locales
+```bash
 nvim /etc/locale.gen
+```
 
-# Uncomment:
+- Uncomment:
+```bash
 en_US.UTF-8 UTF-8
 fr_FR.UTF-8 UTF-8
+```
 
-# ⚙️ Generate locale definitions
+- ⚙️ Generate locale definitions
+```bash
 locale-gen
 ```
 
 ### 🔢 Step 11 — TTY Behavior (Enable NumLock)
 
+- 🧷 Create drop-in to activate NumLock automatically on TTY login
 ```bash
-# 🧷 Create drop-in to activate NumLock automatically on TTY login
 mkdir /etc/systemd/system/getty@.service.d
 nvim /etc/systemd/system/getty@.service.d/activate-numlock.conf
+```
 
-# Content:
+- Content:
+```bash
 [Service]
 ExecStartPre=/bin/sh -c 'setleds -D +num < /dev/%I'
 ```
 
 ### 🖥️ Step 12 — Host Identity Configuration
 
+- 🏷️ Set system hostname
 ```bash
-# 🏷️ Set system hostname
 nvim /etc/hostname
+```
 
-# Content:
+- Content:
+```bash
 lianli-arch
+```
 
-# 🧭 Set hosts file entries for local networking
+- 🧭 Set hosts file entries for local networking
+```bash
 nvim /etc/hosts
+```
 
-# Content:
+- Content:
+```bash
 127.0.0.1      localhost
 ::1            localhost
 192.168.1.101  lianli-arch.zenitram lianli-arch
@@ -503,56 +548,74 @@ nvim /etc/hosts
 
 ### 🕒 Step 13 — Timezone & Clock Setup
 
+- 🌍 Set system timezone
 ```bash
-# 🌍 Set system timezone
 ln -sf /usr/share/zoneinfo/Europe/Paris /etc/localtime
+```
 
-# ⏱️ Sync hardware clock with system time
+- ⏱️ Sync hardware clock with system time
+```bash
 hwclock --systohc
 ```
 
 ### 🧩 Step 14 — Initramfs Configuration (Systemd, LUKS, Keyboard)
 
+- ⚙️ Edit initramfs hooks to include systemd & encryption
 ```bash
-# ⚙️ Edit initramfs hooks to include systemd & encryption
 nvim /etc/mkinitcpio.conf
+```
 
-# Content:
+- Content:
+```bash
 HOOKS=(systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems sd-shutdown)
+```
 
-# 🔐 Setup encrypted volume for systemd to unlock via TPM2
+- 🔐 Setup encrypted volume for systemd to unlock via TPM2
+```bash
 nvim /etc/crypttab.initramfs
+```
 
-# Content:
+- Content:
+```bash
 cryptarch UUID=<nvme-UUID> none tpm2-device=auto,password-echo=no,x-systemd.device-timeout=0,timeout=0,no-read-workqueue,no-write-workqueue,discard
+```
 
-# Get <nvme-UUID> on neovim:
+- Get <nvme-UUID> on neovim:
+```bash
 :read ! lsblk -dno UUID /dev/nvme0n1p2
 ```
 
 ### 🧵 Step 15 — Kernel Command Line Configuration (UKI + zswap)
 
+-⚙️ Root and logging options (read-only fs is handled by systemd and to fsck /)
 ```bash
-# ⚙️ Root and logging options (read-only fs is handled by systemd and to fsck /)
 nvim /etc/cmdline.d/01-root.conf
+```
 
-# Content:
+- Content:
+```bash
 root=/dev/mapper/cryptarch rootfstype=btrfs rootflags=subvol=@ ro loglevel=3
+```
 
-# 🧠 Configure zswap parameters for performance
+- 🧠 Configure zswap parameters for performance
+```bash
 nvim /etc/cmdline.d/02-zswap.conf
+```
 
-# Content:
+- Content:
+```bash
 zswap.enabled=1 zswap.max_pool_percent=20 zswap.zpool=zsmalloc zswap.compressor=zstd zswap.accept_threshold_percent=90
 ```
 
 ### 🧬 Step 16 — Initramfs Preset for Unified Kernel Image (UKI)
 
+- 🔧 Setup mkinitcpio preset to generate a UKI
 ```bash
-# 🔧 Setup mkinitcpio preset to generate a UKI
 nvim /etc/mkinitcpio.d/linux.preset
+```
 
-# Content only:
+- Content only:
+```bash
 ALL_kver="/boot/vmlinuz-linux"
 PRESETS=('default')
 default_uki="/efi/EFI/Linux/arch-linux.efi"
@@ -561,67 +624,81 @@ default_options="--splash=/usr/share/systemd/bootctl/splash-arch.bmp"
 
 ### 🔐 Step 17 — Secure Boot with sbctl
 
+- 🔑 Create Secure Boot keys
 ```bash
-# 🔑 Create Secure Boot keys
 sbctl create-keys
+```
 
-# 📥 Enroll custom keys and micr0$0ft💩 keys
+- 📥 Enroll custom keys and micr0$0ft💩 keys
+```bash
 sbctl enroll-keys -m
+```
 
-# 🛠️ Generate the Unified Kernel Image
+- 🛠️ Generate the Unified Kernel Image
+```bash
 mkdir -p /efi/EFI/Linux
 mkinitcpio -p linux
 ```
 
 ### 💻 Step 18 — EFI Boot Entry
 
+- 🧷 Register UKI with UEFI firmware
 ```bash
-# 🧷 Register UKI with UEFI firmware
 efibootmgr --create --disk /dev/nvme0n1 --part 1 \
   --label "Arch Linux" --loader /EFI/Linux/arch-linux.efi --unicode
 ```
 
 ### 🛡️ Step 19 — LUKS TPM2 Key Enrollment
 
+- 🔒 Enroll TPM2 key (PCR 0 = firmware, PCR 7 = Secure Boot state)
 ```bash
-# 🔒 Enroll TPM2 key (PCR 0 = firmware, PCR 7 = Secure Boot state)
 systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7 /dev/nvme0n1p2
 ```
 
 ### 🧠 Step 20 — Swappiness Tuning
 
+- 🧮 Lower swappiness to prefer RAM usage over swap
 ```bash
-# 🧮 Lower swappiness to prefer RAM usage over swap
 nvim /etc/sysctl.d/99-swappiness.conf
+```
 
-# Content, 80% RAM usage before swapping:
+- Content, 80% RAM usage before swapping:
+```bash
 vm.swappiness=20
 ```
 
 ### 🔄 Step 21 — Encrypted Swap Setup
 
+- 🔐 Add encrypted swap entry using /dev/urandom
 ```bash
-# 🔐 Add encrypted swap entry using /dev/urandom
 nvim /etc/crypttab
+```
 
-# Content:
+- Content:
+```bash
 swap      /.swap/swapfile      /dev/urandom      swap,cipher=aes-xts-plain64,sector-size=4096
+```
 
-# 📄 Add swap to fstab
+- 📄 Add swap to fstab
+```bash
 nvim /etc/fstab
+```
 
-# Content:
+- Content:
+```bash
 #	/.swap/swapfile      CRYPTED SWAPFILE
 /dev/mapper/swap      none      swap      defaults      0 0
 ```
 
 ### 📦 Step 22 — Pacman Configuration
 
+- 📦 Enable multilib, candy theme, parallel downloads & ignore snapper cron jobs
 ```bash
-# 📦 Enable multilib, candy theme, parallel downloads & ignore snapper cron jobs
 nvim /etc/pacman.conf
+```
 
-# Content:
+- Content:
+```bash
 NoExtract = etc/cron.daily/snapper etc/cron.hourly/snapper
 Color
 ParallelDownloads = 10
@@ -633,11 +710,13 @@ Include = /etc/pacman.d/mirrorlist
 
 ### 🌐 Step 23 — Network Configuration (Wired)
 
+- 📡 Configure wired interface for DHCP, mDNS, and IPv6
 ```bash
-# 📡 Configure wired interface for DHCP, mDNS, and IPv6
 nvim /etc/systemd/network/20-wired.network
+```
 
-# Content:
+- Content:
+```bash
 [Match]
 Name=eno* ens* enp* eth*
 
@@ -658,18 +737,20 @@ RouteMetric=100
 
 ### 🔌 Step 24 — Basic Packages: Bluetooth, Snapper, Pacman Cache Service, Reflector
 
+- 📦 Install essential tools
 ```bash
-# 📦 Install essential tools
 pacman -Syy bluez snapper pacman-contrib reflector
 ```
 
 ### 🕰️ Step 25 — Time Sync with French NTP Servers
 
+- ⏲️ Set systemd-timesyncd to use French pool servers with iburst
 ```bash
-# ⏲️ Set systemd-timesyncd to use French pool servers with iburst
 nvim /etc/systemd/timesyncd.conf
+```
 
-# Content:
+- Content:
+```bash
 [Time]
 NTP=0.fr.pool.ntp.org 1.fr.pool.ntp.org 2.fr.pool.ntp.org 3.fr.pool.ntp.org
 FallbackNTP=0.arch.pool.ntp.org 1.arch.pool.ntp.org 2.arch.pool.ntp.org 3.arch.pool.ntp.org
@@ -677,28 +758,32 @@ FallbackNTP=0.arch.pool.ntp.org 1.arch.pool.ntp.org 2.arch.pool.ntp.org 3.arch.p
 
 ### 🚀 Step 26 — I/O Scheduler Tuning for NVMe
 
+- 📉 Disable I/O scheduler on NVMe device to use none (for performance)
 ```bash
-# 📉 Disable I/O scheduler on NVMe device to use none (for performance)
 nvim /etc/udev/rules.d/60-schedulers.rules
+```
 
-# Content:
+- Content:
+```bash
 ACTION=="add|change", KERNEL=="nvme0n1", ATTR{queue/scheduler}="none"
 ```
 
 ### 🧭 Step 27 — DNS Stub Resolver via systemd-resolved
 
+- 🔁 Link stub resolver to /etc/resolv.conf
 ```bash
-# 🔁 Link stub resolver to /etc/resolv.conf
 ln -sf ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 ```
 
 ### 🌐 Step 28 — Reflector Configuration (Update Mirrorlist)
 
+- 🌍 Optimize pacman mirrors by age, country, and protocol
 ```bash
-# 🌍 Optimize pacman mirrors by age, country, and protocol
 nvim /etc/xdg/reflector/reflector.conf
+```
 
-# Content:
+- Content:
+```bash
 --save /etc/pacman.d/mirrorlist
 --country France,Germany,Netherlands
 --protocol https
@@ -708,8 +793,8 @@ nvim /etc/xdg/reflector/reflector.conf
 
 ### ⚙️ Step 29 — Enable Key Services (Networking, Bluetooth, Time, Packages Cache Cleaner, Mirrorlist Updater)
 
+- 🛠️ Enable network and system services
 ```bash
-# 🛠️ Enable network and system services
 systemctl enable systemd-networkd.service
 systemctl enable systemd-resolved.service
 systemctl enable bluetooth.service
@@ -720,63 +805,75 @@ systemctl enable reflector.timer
 
 ### 🔑 Step 30 — Configure sudo
 
+- 🛡️ Grant sudo to wheel group
 ```bash
-# 🛡️ Grant sudo to wheel group
 EDITOR=nvim visudo
+```
 
-# Content:
+- Content:
+```bash
 %wheel ALL=(ALL:ALL) ALL
 ```
 
 ### 🚧 Step 31 — Compilation Optimization (makepkg)
 
+- 🧰 Tune makepkg flags for native arch, use /tmp for build
 ```bash
-# 🧰 Tune makepkg flags for native arch, use /tmp for build
 nvim /etc/makepkg.conf
+```
 
-# Content:
+- Content:
+```bash
 CFLAGS="-march=native -O2 -pipe ..."
 MAKEFLAGS="-j$(nproc)"
 BUILDDIR=/tmp/makepkg
+```
 
-# 🦀 Optimize Rust build flags
+- 🦀 Optimize Rust build flags
+```bash
 nvim /etc/makepkg.conf.d/rust.conf
+```
 
-# Content:
+- Content:
+```bash
 RUSTFLAGS="-C opt-level=2 -C target-cpu=native"
 ```
 
 ### 🔇 Step 32 — Disable HDMI Audio
 
+- 🔕 Blacklist HDMI audio module
 ```bash
-# 🔕 Blacklist HDMI audio module
 nvim /etc/modprobe.d/blacklist.conf
+```
 
-# Content:
+- Content:
+```bash
 blacklist snd_hda_intel
 ```
 
 ### 🔒 Step 33 — Disable Webcam Microphone
 
+- 🎙️ Block Logitech webcam microphone via udev rule
 ```bash
-# 🎙️ Block Logitech webcam microphone via udev rule
 nvim /etc/udev/rules.d/90-blacklist-webcam-sound.rules
+```
 
-# Content:
+- Content:
+```bash
 SUBSYSTEM=="usb", DRIVER=="snd-usb-audio", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="085c", ATTR{authorized}="0"
 ```
 
 ### 🔐 Step 34 — Set Root Password
 
+- 🔑 Set root password
 ```bash
-# 🔑 Set root password
 passwd root
 ```
 
 ### 🚪 Step 35 — Exit chroot, Unmount, Reboot into Firmware Setup
 
+- 👋 Exit chroot, unmount and reboot into UEFI/BIOS to check if Secure Boot is enabled
 ```bash
-# 👋 Exit chroot, unmount and reboot into UEFI/BIOS to check if Secure Boot is enabled
 exit
 umount -R /mnt
 systemctl reboot --firmware-setup
@@ -784,30 +881,44 @@ systemctl reboot --firmware-setup
 
 ### 🧩 Step 36 — Configure Snapper after Reboot
 
+- 🔌 Unmount the default /.snapshots subvolume
 ```bash
-# 🔌 Unmount the default /.snapshots subvolume
 umount /.snapshots
+```
 
-# 🗑️ Delete it to avoid conflicts with our custom mount
+- 🗑️ Delete it to avoid conflicts with our custom mount
+```bash
 rm -r /.snapshots
+```
 
-# 🛠️ Initialize Snapper for root filesystem
+- 🛠️ Initialize Snapper for root filesystem
+```bash
 snapper -c root create-config /
+```
 
-# ❌ Delete the subvolume Snapper just created (we’ll remount it ourselves)
+- ❌ Delete the subvolume Snapper just created (we’ll remount it ourselves)
+```bash
 btrfs subvolume delete /.snapshots
+```
 
-# 📂 Recreate the mount point and mount it
+- 📂 Recreate the mount point and mount it
+```bash
 mkdir /.snapshots
 mount /.snapshots
+```
 
-# 🔐 Secure the directory
+- 🔐 Secure the directory
+```bash
 chmod 750 /.snapshots
+```
 
-# 📝 Configure Snapper snapshot settings
+- 📝 Configure Snapper snapshot settings
+```bash
 nvim /etc/snapper/configs/root
+```
 
-# Content:
+- Content:
+```bash
 TIMELINE_CREATE="yes"
 TIMELINE_CLEANUP="yes"
 
@@ -825,11 +936,13 @@ TIMELINE_LIMIT_YEARLY="0"
 
 ### 🛡️ Step 37 — Custom Pacman Hook to Backup /efi
 
+- 🪝 Create a hook to automatically backup /efi before critical updates
 ```bash
-# 🪝 Create a hook to automatically backup /efi before critical updates
 nvim /etc/pacman.d/hooks/10-efi_backup.hook
+```
 
-# Content:
+- Content:
+```bash
 ## PACMAN EFI BACKUP HOOK
 ## /etc/pacman.d/hooks/10-efi_backup.hook
 
@@ -856,29 +969,37 @@ Target = mkinitcpio-git
 Description = Backing up /efi...
 When = PreTransaction
 Exec = /usr/local/sbin/efi_backup.sh
+```
 
-# ✍️ Create the backup script
+- ✍️ Create the backup script
+```bash
 nvim /usr/local/sbin/efi_backup.sh
+```
 
-# Content:
+- Content:
+```bash
 #!/bin/bash
 ## SCRIPT EFI BACKUP
 ## /usr/local/sbin/efi_backup.sh
 
 tar -czf "/.efibackup/efi-$(date +%Y%m%d-%H%M%S).tar.gz" -C / efi
 ls -1t /.efibackup/efi-*.tar.gz | tail -n +4 | xargs -r rm --
+```
 
-# ✅ Make it executable
+- ✅ Make it executable
+```bash
 chmod +x /usr/local/sbin/efi_backup.sh
 ```
 
 ### ✂️ Step 38 — Limit fstrim to FAT32 /efi Only
 
+- ⚙️ Override default fstrim behavior
 ```bash
-# ⚙️ Override default fstrim behavior
 systemctl edit fstrim.service
+```
 
-# Content:
+- Content:
+```bash
 [Service]
 ExecStart=
 ExecStart=/usr/sbin/fstrim -v /efi
@@ -886,38 +1007,44 @@ ExecStart=/usr/sbin/fstrim -v /efi
 
 ### ⏲️ Step 39 — Enable Maintenance Timers
 
+- 🕒 Enable regular TRIM for /efi only
 ```bash
-# 🕒 Enable regular TRIM for /efi only
 systemctl enable fstrim.timer
+```
 
-# 📸 Enable automatic timeline snapshots
+- 📸 Enable automatic timeline snapshots
+```bash
 systemctl enable snapper-timeline.timer
+```
 
-# 🧼 Enable automatic snapshot cleanup
+- 🧼 Enable automatic snapshot cleanup
+```bash
 systemctl enable snapper-cleanup.timer
 ```
 
 ### 🧷 Step 40 — Enable Pacman Transaction Snapshots
 
+- 🧩 Install snap-pac to snapshot before and after pacman operations
 ```bash
-# 🧩 Install snap-pac to snapshot before and after pacman operations
 pacman -S snap-pac
 ```
 
 ### 🗑️ Step 41 — Clean Snapper Initial Snapshots Manually
 
+- 📋 List snapshots (🔍)
 ```bash
-# 📋 List snapshots (🔍)
 snapper -c root list
+```
 
-# 🧹 Delete a range of snapshots (e.g., snapshots 1 to 2)
+- 🧹 Delete a range of snapshots (e.g., snapshots 1 to 2)
+```bash
 snapper -c root delete 1-2
 ```
 
 ### 📸 Step 42 — Take Initial System Snapshot
 
+- 🧊 Manually create the first system snapshot after full setup
 ```bash
-# 🧊 Manually create the first system snapshot after full setup
 snapper -c root create -d "init"
 ```
 
