@@ -830,6 +830,9 @@ TIMELINE_LIMIT_YEARLY="0"
 nvim /etc/pacman.d/hooks/10-efi_backup.hook
 
 # Content:
+## PACMAN EFI BACKUP HOOK
+## /etc/pacman.d/hooks/10-efi_backup.hook
+
 [Trigger]
 Type = Path
 Operation = Install
@@ -862,7 +865,7 @@ nvim /usr/local/sbin/efi_backup.sh
 ## SCRIPT EFI BACKUP
 ## /usr/local/sbin/efi_backup.sh
 
-tar -czf "/.efibackup/efi-$(date +%Y%m%d-%H%M%S).tar.gz" -C / efi;
+tar -czf "/.efibackup/efi-$(date +%Y%m%d-%H%M%S).tar.gz" -C / efi
 ls -1t /.efibackup/efi-*.tar.gz | tail -n +4 | xargs -r rm --
 
 # ✅ Make it executable
