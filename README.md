@@ -24,7 +24,7 @@ It aims to provide a **solid base system** for advanced users who want a clean, 
 
 - [🎯 Overview](#-overview)
 - [⚙️ Features](#️-features)
-- [📦 Project Structure](#-project-structure)
+- [📦 Structure](#-structure)
 - [🗂️ Disk Layout & Subvolume Architecture](#️-disk-layout--subvolume-architecture)
 - [🔧 Mount Options Summary](#-mount-options-summary)
 - [🚀 Automatic Installation (WIP)](#-automatic-installation-wip)
@@ -86,14 +86,29 @@ A fully modern, encrypted and bootloader-less Arch Linux installation with:
 
 ---
 
-## 📦 Project Structure
+## 📦 Structure
+
+<details>
+<summary>📁 <code>arch-fortress/</code> (click to expand)</summary>
 
 ```
 arch-fortress/
-├── install.sh  # Main script to be run from the Arch ISO
+├── etc/
+│   └── pacman.d/
+│       └── hooks/
+│           └── 10-efi_backup.hook
+├── usr/
+│   └── local/
+│       └── sbin/
+│           └── efi_backup.sh
+├── 01-arch_baseinstall.sh
+├── 02-arch_baseinstall_chroot.sh
+├── 03-install_hook_efibck.Sh
 ├── LICENSE
 └── README.md
 ```
+
+</details>
 
 ---
 
@@ -178,6 +193,7 @@ BTRFS Subvolumes (inside /dev/mapper/cryptarch):
 │ @swap       → /.swap                    ← Encrypted swapfile (e.g. 4G) │
 └────────────────────────────────────────────────────────────────────────┘
 ```
+
 Boot process:
 
 ```
@@ -942,6 +958,10 @@ nvim /etc/pacman.d/hooks/10-efi_backup.hook
 ```
 
 - Content:
+
+<details>
+<summary>📄 <code>10-efi_backup.hook</code> content (click to expand)</summary>
+
 ```bash
 ## PACMAN EFI BACKUP HOOK
 ## /etc/pacman.d/hooks/10-efi_backup.hook
@@ -971,12 +991,18 @@ When = PreTransaction
 Exec = /usr/local/sbin/efi_backup.sh
 ```
 
+</details>
+
 - ✍️ Create the backup script
 ```bash
 nvim /usr/local/sbin/efi_backup.sh
 ```
 
 - Content:
+
+<details>
+<summary>📄 <code>efi_backup.sh</code> content (click to expand)</summary>
+
 ```bash
 #!/bin/bash
 ## SCRIPT EFI BACKUP
@@ -985,6 +1011,8 @@ nvim /usr/local/sbin/efi_backup.sh
 tar -czf "/.efibackup/efi-$(date +%Y%m%d-%H%M%S).tar.gz" -C / efi
 ls -1t /.efibackup/efi-*.tar.gz | tail -n +4 | xargs -r rm --
 ```
+
+</details>
 
 - ✅ Make it executable
 ```bash
