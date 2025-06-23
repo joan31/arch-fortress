@@ -596,7 +596,7 @@ nvim /etc/crypttab.initramfs
 cryptarch UUID=<nvme-UUID> none tpm2-device=auto,password-echo=no,x-systemd.device-timeout=0,timeout=0,no-read-workqueue,no-write-workqueue,discard
 ```
 
-- Get <nvme-UUID> on neovim:
+- Get `<nvme-UUID>` on neovim:
 ```bash
 :read ! lsblk -dno UUID /dev/nvme0n1p2
 ```
@@ -732,6 +732,10 @@ nvim /etc/systemd/network/20-wired.network
 ```
 
 - Content:
+
+<details>
+<summary>📄 <code>20-wired.network</code> content (click to expand)</summary>
+
 ```bash
 [Match]
 Name=eno* ens* enp* eth*
@@ -750,6 +754,8 @@ RouteMetric=100
 [IPv6AcceptRA]
 RouteMetric=100
 ```
+
+</details>
 
 ### 🔌 Step 24 — Basic Packages: Bluetooth, Snapper, Pacman Cache Service, Reflector
 
