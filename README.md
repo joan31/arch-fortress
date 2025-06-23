@@ -603,7 +603,7 @@ cryptarch UUID=<nvme-UUID> none tpm2-device=auto,password-echo=no,x-systemd.devi
 
 ### 🧵 Step 15 — Kernel Command Line Configuration (UKI + zswap)
 
--⚙️ Root and logging options (read-only fs is handled by systemd and to fsck /)
+- ⚙️ Root and logging options (read-only fs is handled by systemd and to fsck /)
 ```bash
 nvim /etc/cmdline.d/01-root.conf
 ```
