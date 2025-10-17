@@ -612,7 +612,7 @@ nvim /etc/cmdline.d/01-root.conf
 
 - Content:
 ```bash
-root=/dev/mapper/cryptarch rootfstype=btrfs rootflags=subvol=@ ro loglevel=3 splash
+root=/dev/mapper/cryptarch rootfstype=btrfs rootflags=subvol=@ ro loglevel=3 quiet splash
 ```
 
 - 🧠 Configure zswap parameters for performance
