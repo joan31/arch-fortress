@@ -574,15 +574,17 @@ ln -sf /usr/share/zoneinfo/Europe/Paris /etc/localtime
 hwclock --systohc
 ```
 
-### 🧩 Step 14 — Initramfs Configuration (Systemd, LUKS, Keyboard)
+### 🧩 Step 14 — Initramfs Configuration (AMDGPU Module, Systemd, LUKS, Keyboard)
 
-- ⚙️ Edit initramfs hooks to include systemd & encryption
+- ⚙️ Edit initramfs modules and hooks to include AMDGPU driver before anything, systemd & encryption
 ```bash
 nvim /etc/mkinitcpio.conf
 ```
 
 - Content:
 ```bash
+MODULES=(amdgpu)
+
 HOOKS=(systemd plymouth autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems sd-shutdown)
 ```
 
