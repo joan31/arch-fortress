@@ -452,11 +452,11 @@ chmod 600 /mnt/.swap/swapfile
 
 ### 📦 Step 7 — Install Base System
 
-- 🧱 Install base packages, kernel + firmwares, EFI tools, btrfs support, text editor and secure boot tools
+- 🧱 Install base packages, kernel + firmwares, EFI tools, btrfs support, text editor, secure boot tools and splash screen
 ```bash
 pacstrap /mnt \
   base base-devel linux linux-headers linux-firmware amd-ucode \
-  neovim efibootmgr btrfs-progs sbctl
+  neovim efibootmgr btrfs-progs sbctl plymouth
 ```
 
 ### 🗂️ Step 8 — Generate fstab
@@ -583,7 +583,7 @@ nvim /etc/mkinitcpio.conf
 
 - Content:
 ```bash
-HOOKS=(systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems sd-shutdown)
+HOOKS=(systemd plymouth autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems sd-shutdown)
 ```
 
 - 🔐 Setup encrypted volume for systemd to unlock via TPM2
@@ -610,7 +610,7 @@ nvim /etc/cmdline.d/01-root.conf
 
 - Content:
 ```bash
-root=/dev/mapper/cryptarch rootfstype=btrfs rootflags=subvol=@ ro loglevel=3
+root=/dev/mapper/cryptarch rootfstype=btrfs rootflags=subvol=@ ro loglevel=3 splash
 ```
 
 - 🧠 Configure zswap parameters for performance
@@ -885,14 +885,28 @@ nvim /etc/udev/rules.d/90-blacklist-webcam-sound.rules
 SUBSYSTEM=="usb", DRIVER=="snd-usb-audio", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="085c", ATTR{authorized}="0"
 ```
 
-### 🔐 Step 34 — Set Root Password
+### 🌡️ Step 34 — Allow games Group to Read CPU Temperature
+
+- 🎮 Grant members of the games group permission to read CPU power and temperature data (via Intel RAPL interface).
+```bash
+nvim /etc/udev/rules.d/70-intel-rapl.rules
+```
+
+- Content:
+```bash
+SUBSYSTEM=="powercap", KERNEL=="intel-rapl:0", RUN+="/usr/bin/chgrp games /sys/%p/energy_uj", RUN+="/usr/bin/chmod g+r /sys/%p/energy_uj"
+```
+
+> ✅ This ensures users in the `games` group can access CPU energy readings without requiring root privileges — useful for monitoring tools or performance overlays.
+
+### 🔐 Step 35 — Set Root Password
 
 - 🔑 Set root password
 ```bash
 passwd root
 ```
 
-### 🚪 Step 35 — Exit chroot, Unmount, Reboot into Firmware Setup
+### 🚪 Step 36 — Exit chroot, Unmount, Reboot into Firmware Setup
 
 - 👋 Exit chroot, unmount and reboot into UEFI/BIOS to check if Secure Boot is enabled
 ```bash
@@ -901,7 +915,7 @@ umount -R /mnt
 systemctl reboot --firmware-setup
 ```
 
-### 🧩 Step 36 — Configure Snapper after Reboot
+### 🧩 Step 37 — Configure Snapper after Reboot
 
 - 🔌 Unmount the default /.snapshots subvolume
 ```bash
@@ -956,7 +970,7 @@ TIMELINE_LIMIT_MONTHLY="0"
 TIMELINE_LIMIT_YEARLY="0"
 ```
 
-### 🛡️ Step 37 — Custom Pacman Hook to Backup /efi
+### 🛡️ Step 38 — Custom Pacman Hook to Backup /efi
 
 - 🪝 Create a hook to automatically backup /efi before critical updates
 ```bash
@@ -1025,7 +1039,7 @@ ls -1t /.efibackup/efi-*.tar.gz | tail -n +4 | xargs -r rm --
 chmod +x /usr/local/sbin/efi_backup.sh
 ```
 
-### ✂️ Step 38 — Limit fstrim to FAT32 /efi Only
+### ✂️ Step 39 — Limit fstrim to FAT32 /efi Only
 
 - ⚙️ Override default fstrim behavior
 ```bash
@@ -1039,7 +1053,7 @@ ExecStart=
 ExecStart=/usr/sbin/fstrim -v /efi
 ```
 
-### ⏲️ Step 39 — Enable Maintenance Timers
+### ⏲️ Step 40 — Enable Maintenance Timers
 
 - 🕒 Enable regular TRIM for /efi only
 ```bash
@@ -1056,14 +1070,14 @@ systemctl enable snapper-timeline.timer
 systemctl enable snapper-cleanup.timer
 ```
 
-### 🧷 Step 40 — Enable Pacman Transaction Snapshots
+### 🧷 Step 41 — Enable Pacman Transaction Snapshots
 
 - 🧩 Install snap-pac to snapshot before and after pacman operations
 ```bash
 pacman -S snap-pac
 ```
 
-### 🗑️ Step 41 — Clean Snapper Initial Snapshots Manually
+### 🗑️ Step 42 — Clean Snapper Initial Snapshots Manually
 
 - 📋 List snapshots (🔍)
 ```bash
@@ -1075,7 +1089,7 @@ snapper -c root list
 snapper -c root delete 1-2
 ```
 
-### 📸 Step 42 — Take Initial System Snapshot
+### 📸 Step 43 — Take Initial System Snapshot
 
 - 🧊 Manually create the first system snapshot after full setup
 ```bash
