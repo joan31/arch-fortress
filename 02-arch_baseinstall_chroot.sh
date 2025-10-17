@@ -57,11 +57,8 @@ log "Hostname set to lianli-arch ✅"
 
 # Hosts configuration
 log_step "Hosts configuration 🖧"
-cat <<EOF >> /etc/hosts
-127.0.0.1           localhost
-::1                 localhost
-192.168.1.101       lianli-arch.zenitram        lianli-arch
-EOF
+echo "192.168.1.101     lianli-arch.zenitram      lianli-arch" \
+>> /etc/hosts
 log "Hosts file updated ✅"
 
 # Timezone configuration
@@ -137,7 +134,7 @@ sed -i \
   -e "/^Color/a ILoveCandy" \
   -e "s/^ParallelDownloads = [0-9]\+/ParallelDownloads = 10/" \
   -e "s/^#\[multilib\]/[multilib]/" \
-  -e "s/^#Include = \/etc\/pacman.d\/mirrorlist/Include = \/etc\/pacman.d\/mirrorlist/" \
+  -e "/^\[multilib\]/{n;s/^#Include = \/etc\/pacman.d\/mirrorlist/Include = \/etc\/pacman.d\/mirrorlist/}" \
   /etc/pacman.conf
 log "Pacman configured ✅"
 
@@ -171,8 +168,8 @@ log "Packages installed successfully ✅"
 # NTP configuration 🕰️
 log_step "Configuring NTP servers for time sync ⏳"
 sed -i \
-  -e '/^NTP=/c\NTP=0.fr.pool.ntp.org 1.fr.pool.ntp.org 2.fr.pool.ntp.org 3.fr.pool.ntp.org' \
-  -e 's/^#FallbackNTP=/FallbackNTP=/' \
+  -e 's|^#\?NTP=.*|NTP=0.fr.pool.ntp.org 1.fr.pool.ntp.org 2.fr.pool.ntp.org 3.fr.pool.ntp.org|' \
+  -e 's|^#FallbackNTP=.*|FallbackNTP=0.arch.pool.ntp.org 1.arch.pool.ntp.org 2.arch.pool.ntp.org 3.arch.pool.ntp.org|' \
   /etc/systemd/timesyncd.conf
 log "NTP servers configured ✅"
 
@@ -202,8 +199,8 @@ systemctl enable reflector.timer
 log "Services enabled ✅"
 
 # Sudo configuration
-elog_step "Sudo configuration 🔑"
-sed -i 's/^# \(%wheel ALL=(ALL) ALL\)/\1/' /etc/sudoers
+log_step "Sudo configuration 🔑"
+sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 log "Sudo configured ✅"
 
 # Build optimization 🛠️

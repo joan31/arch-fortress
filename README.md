@@ -452,10 +452,10 @@ chmod 600 /mnt/.swap/swapfile
 
 ### 📦 Step 7 — Install Base System
 
-- 🧱 Install base packages + firmware, EFI tools, btrfs support, text editor and secure boot tools
+- 🧱 Install base packages, kernel + firmwares, EFI tools, btrfs support, text editor and secure boot tools
 ```bash
 pacstrap /mnt \
-  base base-devel linux linux-firmware amd-ucode \
+  base base-devel linux linux-headers linux-firmware amd-ucode \
   neovim efibootmgr btrfs-progs sbctl
 ```
 
