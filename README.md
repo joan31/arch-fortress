@@ -885,9 +885,9 @@ nvim /etc/udev/rules.d/90-blacklist-webcam-sound.rules
 SUBSYSTEM=="usb", DRIVER=="snd-usb-audio", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="085c", ATTR{authorized}="0"
 ```
 
-### 🌡️ Step 34 — Allow games Group to Read CPU Temperature
+### 🌡️ Step 34 — Allow games Group to Read CPU Power
 
-- 🎮 Grant members of the games group permission to read CPU power and temperature data (via Intel RAPL interface).
+- 🎮 Grant members of the games group permission to read CPU power (via Intel RAPL interface).
 ```bash
 nvim /etc/udev/rules.d/70-intel-rapl.rules
 ```
