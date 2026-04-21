@@ -726,7 +726,12 @@ ILoveCandy
 Include = /etc/pacman.d/mirrorlist
 ```
 
-### 🌐 Step 23 — Network Configuration (Wired)
+### 🌐 Step 23 — Network Configuration
+> 🔀 Choose one network management method depending on your setup
+> - ⚙️ `systemd-networkd` → lightweight, minimal, server-friendly, wired only
+> - 🖥️ `NetworkManager` → recommended for desktop environments (e.g. KDE Plasma, GNOME) with Wi-Fi support
+
+####  ⚙️ Option A — systemd-networkd (Only Wired, Minimal & Lightweight)
 
 - 📡 Configure wired interface for DHCP, mDNS, and IPv6
 ```bash
@@ -734,7 +739,6 @@ nvim /etc/systemd/network/20-wired.network
 ```
 
 - Content:
-
 <details>
 <summary>📄 <code>20-wired.network</code> content (click to expand)</summary>
 
@@ -756,8 +760,15 @@ RouteMetric=100
 [IPv6AcceptRA]
 RouteMetric=100
 ```
-
 </details>
+
+####  ⚙️ Option B — NetworkManager (Desktop-Friendly, Wi-Fi Ready)
+> 💡 Recommended if you plan to use KDE Plasma, GNOME, or need Wi-Fi support
+
+- 📦 Install NetworkManager
+ ```bash
+pacman -Syy networkmanager
+```
 
 ### 🔌 Step 24 — Basic Packages: Bluetooth, Snapper, Pacman Cache Service, Reflector
 
@@ -815,14 +826,29 @@ nvim /etc/xdg/reflector/reflector.conf
 --sort age
 ```
 
-### ⚙️ Step 29 — Enable Key Services (Networking, Bluetooth, Time, Packages Cache Cleaner, Mirrorlist Updater)
+### ⚙️ Step 29 — Enable Key Services (Networking, Bluetooth, Time, Maintenance)
 
-- 🛠️ Enable network and system services
+- 🌐 Enable network services (based on your previous choice)
+
+- ⚙️ If using *systemd-networkd*:
 ```bash
 systemctl enable systemd-networkd.service
 systemctl enable systemd-resolved.service
+```
+
+- 🖥️ If using *NetworkManager*:
+```bash
+systemctl enable NetworkManager.service
+```
+
+- 🔧 Enable essential system services
+```bash
 systemctl enable bluetooth.service
 systemctl enable systemd-timesyncd.service
+```
+
+- 🧹 Enable maintenance timers (package cache cleaner & mirrorlist updater)
+```bash
 systemctl enable paccache.timer
 systemctl enable reflector.timer
 ```
