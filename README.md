@@ -804,8 +804,10 @@ ACTION=="add|change", KERNEL=="nvme0n1", ATTR{queue/scheduler}="none"
 ```
 
 ### 🧭 Step 27 — DNS Stub Resolver via systemd-resolved
+> ⚠️ Only apply this step if you are using *systemd-networkd* (from Step 23)
+> ⏭️ Skip this step if you selected *NetworkManager*
 
-- 🔁 Link stub resolver to /etc/resolv.conf
+- 🔁 Link stub resolver to `/etc/resolv.conf`
 ```bash
 ln -sf ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 ```
