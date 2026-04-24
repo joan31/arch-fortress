@@ -8,7 +8,7 @@
 ![Secure Boot](https://img.shields.io/badge/Secure%20Boot-Enabled-teal?style=flat-square&logo=socket&logoColor=white)
 ![BTRFS](https://img.shields.io/badge/Filesystem-BTRFS-deepskyblue?style=flat-square&logo=buffer&logoColor=white)
 ![Systemd](https://img.shields.io/badge/Init-Systemd-slateblue?style=flat-square&logo=circle&logoColor=white)
-![Zswap](https://img.shields.io/badge/Zswap-Enabled-limegreen?style=flat-square&logo=cashapp&logoColor=white)
+![zRam](https://img.shields.io/badge/zRam-Enabled-limegreen?style=flat-square&logo=cashapp&logoColor=white)
 ![Snapper](https://img.shields.io/badge/Snapper-Enabled-darkslategray?style=flat-square&logo=simpleicons&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square&logo=open-source-initiative)](LICENSE)
 
@@ -16,7 +16,7 @@
 
 It aims to provide a **solid base system** for advanced users who want a clean, fully encrypted system using modern technologies — **without unnecessary components** like GRUB or classic init hooks.
 
-> 🛡️ Built on: **EFI**, **UKI**, **LUKS2 + TPM2**, **Secure Boot**, **BTRFS**, **Systemd init**, **zswap**, **snapper**
+> 🛡️ Built on: **EFI**, **UKI**, **LUKS2 + TPM2**, **Secure Boot**, **BTRFS**, **Systemd init**, **zRam**, **snapper**
 
 ---
 
@@ -43,11 +43,13 @@ A fully modern, encrypted and bootloader-less Arch Linux installation with:
 
 - 🧊 **BTRFS** root with subvolumes and **snapper** for snapshot management
 - 🔐 **LUKS2 encryption** for root with **TPM2** auto-unlocking and passphrase fallback
-- 💾 Encrypted **swap file**
 - 🔁 **Direct EFI boot** via a signed **Unified Kernel Image (UKI)** — no bootloader (no GRUB, no systemd-boot)
 - 💥 Full **Secure Boot** support
 - 🧠 Modern `mkinitcpio` using **systemd init hooks**
-- 🧵 **zswap** for compressed RAM swapping
+- 🧵 **zRam** enabled for compressed in-memory swap, reducing disk swap pressure
+- 💾 Encrypted **swap file** on BTRFS as zRam fallback
+  - Uses a transient encryption key generated at boot from `/dev/urandom`  
+  - ⚠️ Hibernation is not possible (non-persistent encryption key)
 - 🛟 Auto-backup of EFI partition in `/.efibck`
 
 ---
@@ -63,8 +65,8 @@ A fully modern, encrypted and bootloader-less Arch Linux installation with:
 - **BTRFS** with subvolumes:
   - `@`, `@home`, `@snapshots`, etc.
 - Snapshots for root only, managed by **snapper**
+- **zRam** enabled to provide fast compressed RAM-based swap
 - Encrypted **swap file** on BTRFS
-- **zswap** enabled for better memory performance
 
 ### ⚙️ Boot Process
 - **No bootloader** (no GRUB, no systemd-boot)
@@ -76,7 +78,7 @@ A fully modern, encrypted and bootloader-less Arch Linux installation with:
 
 ### 🧠 Init System
 - `mkinitcpio` using:
-  - `systemd`, `sd-vconsole`, `sd-encrypt`, `sd-shutdown`
+  - `systemd`, `sd-vconsole`, `sd-encrypt`
 - No legacy hooks like `udev`, `usr`, `resume`, `keymap`, `consolefont`, `encrypt`
 - Faster, cleaner, future-proof boot
 
@@ -324,7 +326,7 @@ This section will provide all individual shell commands used in the installation
 - 🧬 UKI creation and signing
 - ⚙️ EFI setup
 - 🧊 Snapper configuration
-- 🌀 Swap and zswap activation
+- 🌀 Swap and zRam activation
 
 ### 🧱 Step 1 — Pre-Installation Setup
 
@@ -452,11 +454,11 @@ chmod 600 /mnt/.swap/swapfile
 
 ### 📦 Step 7 — Install Base System
 
-- 🧱 Install base packages, kernel + firmwares, EFI tools, btrfs support, text editor, secure boot tools and splash screen
+- 🧱 Install base packages, kernel + firmwares, EFI tools, btrfs support, text editor, secure boot tools, splash screen and zRam generator service
 ```bash
 pacstrap /mnt \
   base base-devel linux linux-headers linux-firmware amd-ucode \
-  neovim efibootmgr btrfs-progs sbctl plymouth
+  neovim efibootmgr btrfs-progs sbctl plymouth zram-generator
 ```
 
 ### 🗂️ Step 8 — Generate fstab
@@ -585,7 +587,7 @@ nvim /etc/mkinitcpio.conf
 ```bash
 MODULES=(amdgpu)
 
-HOOKS=(systemd plymouth autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems sd-shutdown)
+HOOKS=(systemd plymouth autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems)
 ```
 
 - 🔐 Setup encrypted volume for systemd to unlock via TPM2
@@ -603,7 +605,7 @@ cryptarch UUID=<nvme-UUID> none tpm2-device=auto,password-echo=no,x-systemd.devi
 :read ! lsblk -dno UUID /dev/nvme0n1p2
 ```
 
-### 🧵 Step 15 — Kernel Command Line Configuration (UKI + zswap)
+### 🧵 Step 15 — Kernel Command Line Configuration (UKI + disable zswap)
 
 - ⚙️ Root and logging options (read-only fs is handled by systemd and to fsck /)
 ```bash
@@ -615,14 +617,14 @@ nvim /etc/cmdline.d/01-root.conf
 root=/dev/mapper/cryptarch rootfstype=btrfs rootflags=subvol=@ ro loglevel=3 quiet splash
 ```
 
-- 🧠 Configure zswap parameters for performance
+- 🧠 Disable kernel zswap to avoid duplicate swap compression when using zRam as primary swap device
 ```bash
 nvim /etc/cmdline.d/02-zswap.conf
 ```
 
 - Content:
 ```bash
-zswap.enabled=1 zswap.max_pool_percent=20 zswap.zpool=zsmalloc zswap.compressor=zstd zswap.accept_threshold_percent=90
+zswap.enabled=0
 ```
 
 ### 🧬 Step 16 — Initramfs Preset for Unified Kernel Image (UKI)
@@ -673,21 +675,38 @@ efibootmgr --create --disk /dev/nvme0n1 --part 1 \
 systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7 /dev/nvme0n1p2
 ```
 
-### 🧠 Step 20 — Swappiness Tuning
+### 🧠 Step 20 — zRam Setup
 
-- 🧮 Lower swappiness to prefer RAM usage over swap
+- ⚙️ Configure zRam swap device (primary in-memory compressed swap)
 ```bash
-nvim /etc/sysctl.d/99-swappiness.conf
+nvim /etc/systemd/zram-generator.conf
 ```
 
-- Content, 80% RAM usage before swapping:
+- Content (balanced gaming + desktop performance):
 ```bash
-vm.swappiness=20
+[zram0]
+zram-size = min(ram / 2, 8 * 1024)
+compression-algorithm = zstd
+swap-priority = 100
+fs-type = swap
+```
+
+- 🧮 Configure kernel virtual memory parameters for zRam-based swap behavior
+```bash
+nvim /etc/sysctl.d/99-vm-zram-parameters.conf
+```
+
+- Content (low-latency desktop + gaming responsiveness):
+```bash
+vm.swappiness = 20
+vm.watermark_boost_factor = 0
+vm.watermark_scale_factor = 125
+vm.page-cluster = 0
 ```
 
 ### 🔄 Step 21 — Encrypted Swap Setup
 
-- 🔐 Add encrypted swap entry using /dev/urandom
+- 🔐 Add encrypted swap mapping using `/dev/urandom` (secure swapfile via device-mapper)
 ```bash
 nvim /etc/crypttab
 ```
@@ -697,15 +716,15 @@ nvim /etc/crypttab
 swap      /.swap/swapfile      /dev/urandom      swap,cipher=aes-xts-plain64,sector-size=4096
 ```
 
-- 📄 Add swap to fstab
+- 📄 Add swap entry with low priority (fallback to zram)
 ```bash
 nvim /etc/fstab
 ```
 
 - Content:
 ```bash
-#	/.swap/swapfile      CRYPTED SWAPFILE
-/dev/mapper/swap      none      swap      defaults      0 0
+#	/.swap/swapfile      ENCRYPTED FALLBACK SWAP
+/dev/mapper/swap      none      swap      pri=0      0 0
 ```
 
 ### 📦 Step 22 — Pacman Configuration
