@@ -660,6 +660,8 @@ mkdir -p /efi/EFI/Linux
 mkinitcpio -p linux
 ```
 
+> ℹ️ Note: TPM2-based disk decryption will be configured after the first reboot to ensure the system is fully initialized and all required services are available.
+
 ### 💻 Step 18 — EFI Boot Entry
 
 - 🧷 Register UKI with UEFI firmware
@@ -668,14 +670,7 @@ efibootmgr --create --disk /dev/nvme0n1 --part 1 \
   --label "Arch Linux" --loader /EFI/Linux/arch-linux.efi --unicode
 ```
 
-### 🛡️ Step 19 — LUKS TPM2 Key Enrollment
-
-- 🔒 Enroll TPM2 key (PCR 0 = firmware, PCR 7 = Secure Boot state)
-```bash
-systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7 /dev/nvme0n1p2
-```
-
-### 🧠 Step 20 — zRam Setup
+### 🧠 Step 19 — zRam Setup
 
 - ⚙️ Configure zRam swap device (primary in-memory compressed swap)
 ```bash
@@ -685,7 +680,7 @@ nvim /etc/systemd/zram-generator.conf
 - Content (balanced gaming + desktop performance):
 ```bash
 [zram0]
-zram-size = min(ram / 2, 8 * 1024)
+zram-size = min(ram / 4, 8 * 1024)
 compression-algorithm = zstd
 swap-priority = 100
 fs-type = swap
@@ -704,7 +699,7 @@ vm.watermark_scale_factor = 125
 vm.page-cluster = 0
 ```
 
-### 🔄 Step 21 — Encrypted Swap Setup
+### 🔄 Step 20 — Encrypted Swap Setup
 
 - 🔐 Add encrypted swap mapping using `/dev/urandom` (secure swapfile via device-mapper)
 ```bash
@@ -727,7 +722,7 @@ nvim /etc/fstab
 /dev/mapper/swap      none      swap      pri=0      0 0
 ```
 
-### 📦 Step 22 — Pacman Configuration
+### 📦 Step 21 — Pacman Configuration
 
 - 📦 Enable multilib, candy theme, parallel downloads & ignore snapper cron jobs
 ```bash
@@ -736,7 +731,7 @@ nvim /etc/pacman.conf
 
 - Content:
 ```bash
-NoExtract = etc/cron.daily/snapper etc/cron.hourly/snapper
+NoExtract = etc/cron.hourly/snapper
 Color
 ParallelDownloads = 10
 ILoveCandy
@@ -745,7 +740,7 @@ ILoveCandy
 Include = /etc/pacman.d/mirrorlist
 ```
 
-### 🌐 Step 23 — Network Configuration
+### 🌐 Step 22 — Network Configuration
 > 🔀 Choose one network management method depending on your setup
 > - ⚙️ `systemd-networkd` → lightweight, minimal, server-friendly, wired only
 > - 🖥️ `NetworkManager` → recommended for desktop environments (e.g. KDE Plasma, GNOME) with Wi-Fi support
@@ -789,14 +784,14 @@ RouteMetric=100
 pacman -Syy networkmanager
 ```
 
-### 🔌 Step 24 — Basic Packages: Bluetooth, Snapper, Pacman Cache Service, Reflector
+### 🔌 Step 23 — Basic Packages: Bluetooth, Snapper, Pacman Cache Service, Reflector
 
 - 📦 Install essential tools
 ```bash
 pacman -Syy bluez snapper pacman-contrib reflector
 ```
 
-### 🕰️ Step 25 — Time Sync with French NTP Servers
+### 🕰️ Step 24 — Time Sync with French NTP Servers
 
 - ⏲️ Set systemd-timesyncd to use French pool servers with iburst
 ```bash
@@ -810,7 +805,7 @@ NTP=0.fr.pool.ntp.org 1.fr.pool.ntp.org 2.fr.pool.ntp.org 3.fr.pool.ntp.org
 FallbackNTP=0.arch.pool.ntp.org 1.arch.pool.ntp.org 2.arch.pool.ntp.org 3.arch.pool.ntp.org
 ```
 
-### 🚀 Step 26 — I/O Scheduler Tuning for NVMe
+### 🚀 Step 25 — I/O Scheduler Tuning for NVMe
 
 - 📉 Disable I/O scheduler on NVMe device to use none (for performance)
 ```bash
@@ -819,10 +814,10 @@ nvim /etc/udev/rules.d/60-schedulers.rules
 
 - Content:
 ```bash
-ACTION=="add|change", KERNEL=="nvme0n1", ATTR{queue/scheduler}="none"
+ACTION=="add|change", KERNEL=="nvme[0-9]*", ENV{DEVTYPE}=="disk", ATTR{queue/scheduler}="none"
 ```
 
-### 🧭 Step 27 — DNS Stub Resolver via systemd-resolved
+### 🧭 Step 26 — DNS Stub Resolver via systemd-resolved
 > ⚠️ Only apply this step if you are using *systemd-networkd* (from Step 23)
 > ⏭️ Skip this step if you selected *NetworkManager*
 
@@ -831,7 +826,7 @@ ACTION=="add|change", KERNEL=="nvme0n1", ATTR{queue/scheduler}="none"
 ln -sf ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 ```
 
-### 🌐 Step 28 — Reflector Configuration (Update Mirrorlist)
+### 🌐 Step 27 — Reflector Configuration (Update Mirrorlist)
 
 - 🌍 Optimize pacman mirrors by age, country, and protocol
 ```bash
@@ -847,7 +842,7 @@ nvim /etc/xdg/reflector/reflector.conf
 --sort age
 ```
 
-### ⚙️ Step 29 — Enable Key Services (Networking, Bluetooth, Time, Maintenance)
+### ⚙️ Step 28 — Enable Key Services (Networking, Bluetooth, Time, Maintenance)
 
 - 🌐 Enable network services (based on your previous choice)
 
@@ -874,11 +869,29 @@ systemctl enable paccache.timer
 systemctl enable reflector.timer
 ```
 
+### 🧰 Step 29 — Change System Editor and Visualiser
+
+- 📝 Define default system editor (used by system tools like systemctl edit, git, etc.)
+```bash
+nvim /etc/environment
+```
+
+- Content:
+```bash
+EDITOR=nvim
+VISUAL=nvim
+```
+
+- 🔄 Apply changes immediately (current shell session only)
+```bash
+source /etc/environment
+```
+
 ### 🔑 Step 30 — Configure sudo
 
 - 🛡️ Grant sudo to wheel group
 ```bash
-EDITOR=nvim visudo
+visudo
 ```
 
 - Content:
@@ -964,7 +977,14 @@ umount -R /mnt
 systemctl reboot --firmware-setup
 ```
 
-### 🧩 Step 37 — Configure Snapper after Reboot
+### 🛡️ Step 37 — LUKS TPM2 Key Enrollment
+
+- 🔒 Enroll TPM2 key (PCR 0 = firmware, PCR 7 = Secure Boot state)
+```bash
+systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7 /dev/nvme0n1p2
+```
+
+### 🧩 Step 38 — Configure Snapper after Reboot
 
 - 🔌 Unmount the default /.snapshots subvolume
 ```bash
@@ -1019,7 +1039,7 @@ TIMELINE_LIMIT_MONTHLY="0"
 TIMELINE_LIMIT_YEARLY="0"
 ```
 
-### 🛡️ Step 38 — Custom Pacman Hook to Backup /efi
+### 🛡️ Step 39 — Custom Pacman Hook to Backup /efi
 
 - 🪝 Create a hook to automatically backup /efi before critical updates
 ```bash
@@ -1088,23 +1108,9 @@ ls -1t /.efibackup/efi-*.tar.gz | tail -n +4 | xargs -r rm --
 chmod +x /usr/local/sbin/efi_backup.sh
 ```
 
-### ✂️ Step 39 — Limit fstrim to FAT32 /efi Only
-
-- ⚙️ Override default fstrim behavior
-```bash
-systemctl edit fstrim.service
-```
-
-- Content:
-```bash
-[Service]
-ExecStart=
-ExecStart=/usr/sbin/fstrim -v /efi
-```
-
 ### ⏲️ Step 40 — Enable Maintenance Timers
 
-- 🕒 Enable regular TRIM for /efi only
+- 🕒 Enable regular TRIM
 ```bash
 systemctl enable fstrim.timer
 ```
