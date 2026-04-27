@@ -882,9 +882,9 @@ EDITOR=nvim
 VISUAL=nvim
 ```
 
-- 🔄 Apply changes immediately (current shell session only)
+- 🔄 Apply changes immediately (current shell)
 ```bash
-source /etc/environment
+export EDITOR=nvim
 ```
 
 ### 🔑 Step 30 — Configure sudo
