@@ -194,7 +194,7 @@ fi
 
 # Install base packages
 echo "📦 Installing base packages..."
-pacstrap /mnt base base-devel linux linux-firmware amd-ucode neovim efibootmgr btrfs-progs sbctl zram-generator
+pacstrap /mnt base base-devel linux linux-headers linux-firmware amd-ucode neovim efibootmgr btrfs-progs sbctl plymouth zram-generator
 
 # Generate fstab with fsck enabled for @
 echo "📝 Generating fstab..."
