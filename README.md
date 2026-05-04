@@ -1149,6 +1149,15 @@ systemctl enable snapper-cleanup.timer
 pacman -S snap-pac
 ```
 
+### Step 42 — 🎮 Shared games directory (multi-user Steam library)
+
+- 🕹️ Allow access and inheritance for users in the `games` group via ACL
+```bash
+chown root:games /opt/games
+chmod 2775 /opt/games
+setfacl -dm g:games:rwx /opt/games
+```
+
 ### 🗑️ Step 42 — Clean Snapper Initial Snapshots Manually
 
 - 📋 List snapshots (🔍)
