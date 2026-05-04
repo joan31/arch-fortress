@@ -460,6 +460,7 @@ pacstrap /mnt \
   base base-devel linux linux-headers linux-firmware amd-ucode \
   neovim efibootmgr btrfs-progs sbctl plymouth zram-generator
 ```
+> 💡 `base-devel` is required for building packages from the AUR or compiling software from source, and `linux-headers` is needed for DKMS to build and maintain kernel modules.
 
 ### 🗂️ Step 8 — Generate fstab
 
