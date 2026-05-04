@@ -498,6 +498,12 @@ KEYMAP=fr
 FONT=lat9w-16
 ```
 
+- 🧩 Set X11 keyboard layout
+```bash
+localectl set-x11-keymap fr pc105 azerty compose:rctrl
+```
+> 💡 This ensures correct keyboard compatibility with Xorg/XWayland apps and proper layout support in display managers like Plasma Login Manager (used by KDE Plasma).
+
 - 🌍 Set system-wide locale
 ```bash
 nvim /etc/locale.conf
@@ -639,8 +645,8 @@ nvim /etc/mkinitcpio.d/linux.preset
 ALL_kver="/boot/vmlinuz-linux"
 PRESETS=('default')
 default_uki="/efi/EFI/Linux/arch-linux.efi"
-default_options="--splash=/usr/share/systemd/bootctl/splash-arch.bmp"
 ```
+> 💡 `default_options="--splash=/usr/share/systemd/bootctl/splash-arch.bmp"` is commented out by default and can be uncommented to enable the splash screen, but it may be redundant if Plymouth is used.
 
 ### 🔐 Step 17 — Secure Boot with sbctl
 
@@ -868,6 +874,17 @@ systemctl enable systemd-timesyncd.service
 systemctl enable paccache.timer
 systemctl enable reflector.timer
 ```
+
+- 🚫 Disable hibernation-related targets (not used / not supported in this setup)
+```bash
+systemctl mask hibernate.target hybrid-sleep.target
+```
+> This disables hibernation and hybrid sleep at the systemd level.
+> - Swap is encrypted with a non-persistent key, making hibernation unusable  
+> - It prevents any accidental suspend-to-disk attempts  
+> - It keeps the system configuration cleaner and more explicit
+>  
+> 💡 On KDE Plasma, this also removes the hibernation option from the power menu, making it cleaner and less confusing.
 
 ### 🧰 Step 29 — Change System Editor and Visualiser
 
