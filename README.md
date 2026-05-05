@@ -791,11 +791,11 @@ RouteMetric=100
 pacman -Syy networkmanager
 ```
 
-### 🔌 Step 23 — Basic Packages: Bluetooth, Snapper, Pacman Cache Service, Reflector
+### 🔌 Step 23 — Basic Packages: Bluetooth, Snapper, Pacman Cache Service, Reflector, Firewall
 
 - 📦 Install essential tools
 ```bash
-pacman -Syy bluez snapper pacman-contrib reflector
+pacman -Syy bluez snapper pacman-contrib reflector firewalld
 ```
 
 ### 🕰️ Step 24 — Time Sync with French NTP Servers
@@ -849,7 +849,7 @@ nvim /etc/xdg/reflector/reflector.conf
 --sort age
 ```
 
-### ⚙️ Step 28 — Enable Key Services (Networking, Bluetooth, Time, Maintenance)
+### ⚙️ Step 28 — Enable Key Services (Networking, Bluetooth, Time, Firewall, Maintenance)
 
 - 🌐 Enable network services (based on your previous choice)
 
@@ -868,6 +868,11 @@ systemctl enable NetworkManager.service
 ```bash
 systemctl enable bluetooth.service
 systemctl enable systemd-timesyncd.service
+```
+
+- 🧱 Enable firewall service
+```bash
+systemctl enable firewalld.service
 ```
 
 - 🧹 Enable maintenance timers (package cache cleaner & mirrorlist updater)
@@ -1002,7 +1007,16 @@ systemctl reboot --firmware-setup
 systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7 /dev/nvme0n1p2
 ```
 
-### 🧩 Step 38 — Configure Snapper after Reboot
+### Step 38 — 🎮 Shared games directory (multi-user Steam library)
+
+- 🕹️ Allow access and inheritance for users in the `games` group via ACL
+```bash
+chown root:games /opt/games
+chmod 2775 /opt/games
+setfacl -dm g:games:rwx /opt/games
+```
+
+### 🧩 Step 39 — Configure Snapper after Reboot
 
 - 🔌 Unmount the default /.snapshots subvolume
 ```bash
@@ -1057,7 +1071,7 @@ TIMELINE_LIMIT_MONTHLY="0"
 TIMELINE_LIMIT_YEARLY="0"
 ```
 
-### 🛡️ Step 39 — Custom Pacman Hook to Backup /efi
+### 🛡️ Step 40 — Custom Pacman Hook to Backup /efi
 
 - 🪝 Create a hook to automatically backup /efi before critical updates
 ```bash
@@ -1126,7 +1140,7 @@ ls -1t /.efibackup/efi-*.tar.gz | tail -n +4 | xargs -r rm --
 chmod +x /usr/local/sbin/efi_backup.sh
 ```
 
-### ⏲️ Step 40 — Enable Maintenance Timers
+### ⏲️ Step 41 — Enable Maintenance Timers
 
 - 🕒 Enable regular TRIM
 ```bash
@@ -1143,23 +1157,14 @@ systemctl enable snapper-timeline.timer
 systemctl enable snapper-cleanup.timer
 ```
 
-### 🧷 Step 41 — Enable Pacman Transaction Snapshots
+### 🧷 Step 42 — Enable Pacman Transaction Snapshots
 
 - 🧩 Install snap-pac to snapshot before and after pacman operations
 ```bash
 pacman -S snap-pac
 ```
 
-### Step 42 — 🎮 Shared games directory (multi-user Steam library)
-
-- 🕹️ Allow access and inheritance for users in the `games` group via ACL
-```bash
-chown root:games /opt/games
-chmod 2775 /opt/games
-setfacl -dm g:games:rwx /opt/games
-```
-
-### 🗑️ Step 42 — Clean Snapper Initial Snapshots Manually
+### 🗑️ Step 43 — Clean Snapper Initial Snapshots Manually
 
 - 📋 List snapshots (🔍)
 ```bash
@@ -1171,7 +1176,7 @@ snapper -c root list
 snapper -c root delete 1-2
 ```
 
-### 📸 Step 43 — Take Initial System Snapshot
+### 📸 Step 44 — Take Initial System Snapshot
 
 - 🧊 Manually create the first system snapshot after full setup
 ```bash
